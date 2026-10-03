@@ -108,8 +108,10 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   quarterly/yearly. Arrows step back through past periods.
 - Protected blocks can be dragged by hand; only the scheduler (Re-run) never touches them.
 - Desktop: centered single column everywhere except Weekly, which becomes 7 columns at >= 1024px.
-- Sign-in: magic link plus a 6-digit code in the same email, because iOS home-screen apps do not
-  share storage with Safari.
+- Sign-in: magic link. The owner uses Android (Pixel 11 Pro Fold), where the installed app shares
+  Chrome's login, so the link is enough. The app also accepts a code (folded behind "The email has a
+  code instead?"), but Supabase only allows adding `{{ .Token }}` to templates after custom SMTP is
+  set up, so the default emails contain only the link.
 - Out-of-scope mockup content is dropped: biometric sync, notification settings, search,
   suggested fixes / "apply slot adjustment", buffer slider, fluidity mode, volume tracking.
 - Mockup copy names ("Telemetry Engine", "Friction Detector") replaced with plain labels.

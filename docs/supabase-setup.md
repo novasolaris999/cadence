@@ -11,11 +11,23 @@ Menu names drift a little between dashboard versions. If a label differs, look f
 ## Part 1. Create the project (done)
 Project `cadence`, region West US (North California), password saved.
 
-## Part 2. Run the schema (done)
-SQL Editor > New query > paste `supabase/migrations/0001_init.sql` > Run > "Success. No rows returned".
+## Part 2. Run the schema
+SQL Editor > New query > paste the whole of `supabase/migrations/0001_init.sql` > make sure nothing is
+highlighted (if text is selected, Supabase runs only the selection) > Run > "Success. No rows returned".
 
-Check it worked: left sidebar **Table Editor** should list `blocks`, `categories`, `day_logs`,
-`settings`, `targets`, `week_plans`, each with a small "RLS enabled" marker (no "unrestricted" warning).
+Check it worked by running this in a new SQL Editor query:
+
+```sql
+select tablename, rowsecurity as protected from pg_tables where schemaname = 'public' order by tablename;
+```
+
+Expected: 6 rows (`blocks`, `categories`, `day_logs`, `settings`, `targets`, `week_plans`), all with
+`protected = true`. In **Table Editor**, the tables appear when the **schema** dropdown at the top left
+is set to `public`.
+
+- 0 rows: the schema did not run in this project. Run the migration again (whole file, nothing selected).
+- An error like "type ... already exists" when re-running: part of it ran before. Ask Claude for a
+  clean-up script rather than editing by hand.
 
 ---
 
@@ -36,23 +48,19 @@ address it does not know, as protection against someone redirecting your login t
    - `/**` allows any page inside the app.
    - Do not use the broader `https://*.vercel.app/**`: that would let any Vercel site receive your login.
 
-## Part 4. Put a code in the sign-in emails (Supabase tab)
+## Part 4. Sign-in code in the email (optional, skip for now)
 
-**Why:** on iPhone, a home-screen app does not share its login with Safari, so tapping the email link
-signs in Safari, not the app. A code typed into the app signs in right where you typed it.
+Supabase only allows editing email templates after you connect your own email sender ("custom SMTP").
+The code is only needed on iPhone, where a home-screen app does not share Safari's login. On Android
+(Pixel) and desktop, the link in the default email signs you in, so skip this part.
 
-1. Still in **Authentication**, under **Configuration**, click **Emails** (older dashboards: **Email
-   Templates**). You see a list or tabs of templates.
-2. Click **Confirm signup**. This is the email for your very first sign-in.
-3. In the **Message body** (HTML), find the line containing `{{ .ConfirmationURL }}`. Click at the end
-   of the closing `</p>` on that line, press Enter, and paste:
+If you ever want the code (or more than Supabase's few emails per hour): connect a free sender such as
+Resend under **Authentication > Emails > SMTP settings**, then add this line under the link in both the
+**Confirm signup** and **Magic Link** templates:
 
-   ```html
-   <p>Or enter this code in the app: <strong>{{ .Token }}</strong></p>
-   ```
-   Keep the curly braces exactly as written: Supabase replaces `{{ .Token }}` with the real code.
-4. Click **Save**.
-5. Click **Magic Link** (the email for every sign-in after the first) and repeat steps 3 and 4.
+```html
+<p>Or enter this code in the app: <strong>{{ .Token }}</strong></p>
+```
 
 ## Part 5. Copy the two values the app needs (Supabase tab)
 
@@ -98,13 +106,12 @@ Success: the app opens on a **Sign in** card, and the yellow "Demo data" badge i
 ## Part 7. Sign in (app + email)
 
 1. On the sign-in card, enter your email, tap **Email me a sign-in link**.
-2. Open the email from Supabase ("Confirm your signup" the first time). Either:
-   - tap the link: it opens the app signed in, or
-   - type the code from the email into the app and tap **Sign in with code**.
+2. Open the email from Supabase on the same device ("Confirm your signup" the first time) and tap
+   the link. It opens the app signed in.
 3. You land on **Today**. Open **Goals**: you should see "No routines yet".
 
 If the link opens a page that says the link is invalid or expired, request a new email and use the
-newest one: each new email cancels the previous code.
+newest one: each new email cancels the previous link.
 
 ## Part 8. Close sign-ups (Supabase tab)
 
