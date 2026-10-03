@@ -235,7 +235,7 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
 - Fast adding (owner request): "Duplicate" on every habit and routine page opens a new form copied from it, name
   pre-selected to type over (`/goals/new?copy=<id>`, `/goals/routine/new?copy=<id>`; rules `copyHabit`,
   `copyRoutine`). A habit copied out of a routine becomes its own habit with the routine's days and time. The
-  new-habit form has "Save & add another": saves, keeps every setting, clears only the name.
+  new-habit form has "Save & add another": saves, keeps every setting, clears only the name. (Published to production.)
 - Before 0002 is applied, the app still works without routines: reads fall back (missing column/table codes) and
   saving a routine shows "Database update needed".
 
