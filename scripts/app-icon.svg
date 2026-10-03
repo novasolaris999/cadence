@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <!-- Full-bleed background: Android masks the corners itself (maskable icon). -->
-  <rect width="512" height="512" rx="112" fill="#4f46e5"/>
+  <rect width="512" height="512" fill="#4f46e5"/>
   <!-- Glyph kept inside the central safe zone (radius ~ 40% of the icon). -->
   <g fill="#ffffff">
     <rect x="166" y="232" width="44" height="96" rx="12"/>

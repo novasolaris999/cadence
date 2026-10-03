@@ -27,7 +27,9 @@ Cadence is a personal daily routine and goal tracker for one user.
 - Hand-written SVG for all charts. No chart library.
 - Vitest for unit tests of pure domain logic, plus `supabase/migrations.test.ts`, which applies every
   migration to PGlite (Postgres in WebAssembly) and checks row level security and constraints
-- Vercel hosting (GitHub repo connected; every branch push gets a preview URL, `main` is production); PWA in phase 7
+- Vercel hosting (GitHub repo connected; every branch push gets a preview URL, `main` is production)
+- Installable PWA via `vite-plugin-pwa` (manifest + Workbox service worker, auto-update). Icons are
+  rendered from `scripts/app-icon.svg` by `scripts/gen-pwa-icons.mjs` (uses the container's Chromium)
 - Fonts self-hosted: Plus Jakarta Sans (headings, metrics), Inter (body, labels)
 
 ## Secrets and environment
@@ -40,7 +42,7 @@ Cadence is a personal daily routine and goal tracker for one user.
 - The publishable key is public by design. Security comes from row level security, not from hiding it.
 - Without these vars the app always runs on in-memory demo data (`src/data/sampleApi.ts`) and shows a
   "Demo" badge. This is how screenshot checks run in the build container.
-- One-time Supabase setup steps for the owner: `docs/supabase-setup.md`.
+- One-time Supabase setup steps for the owner: `docs/supabase-setup.md`. Google sign-in: `docs/google-signin-setup.md`.
 
 ## Conventions
 
@@ -89,11 +91,12 @@ AI-generated suggestions, search, multiple users.
 - [x] Phase 0: SPEC.md and CLAUDE.md committed, mockups reviewed, plan approved
 - [x] Phase 1: Scaffold, tokens, theme toggle, four-tab shell, sample data, Vercel connected (awaiting owner review of the preview)
 - [x] Phase 2: Supabase schema, auth, RLS, target create/edit/archive (built; awaiting owner's Supabase setup and review)
-- [ ] Phase 3: Today against the database
-- [ ] Phase 4: Weekly and block generation
+- [x] Phase 2.5 (owner approved, pulled forward from 7): installable PWA, Google sign-in, production on `main`
+- [ ] Phase 3: Today against the database, including generating this week's blocks from targets
+- [ ] Phase 4: Weekly on real data (drag between days, Re-run)
 - [ ] Phase 5: Goals history views
 - [ ] Phase 6: Insights
-- [ ] Phase 7: PWA and production deploy
+- [ ] Phase 7: Polish and final production check (PWA and production already live since phase 2.5)
 
 ## Decisions log
 
@@ -121,6 +124,17 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   Weekday cluster: >= 2 misses on that weekday and >= 50% of that weekday's occurrences missed,
   over the last 8 weeks.
 - Win rule: 100% with at least 2 hits in the range, or a current streak of 7+.
+- Publishing: the owner approved Claude pushing approved versions to `main` (production, the stable
+  address the installed app uses). Work happens on the feature branch; previews remain the test track.
+  `main` is updated only after the owner approves a change on its preview.
+- Phase order change (owner approved): weekly block generation from targets moves into phase 3 so Today
+  shows real routines; Weekly drag-between-days and Re-run stay in phase 4. PWA + production moved to
+  phase 2.5.
+- Google sign-in: "Continue with Google" shows only when Google is enabled in Supabase (the app reads
+  `/auth/v1/settings`). Email link stays as a fallback. The Google "G" mark uses Google's brand hex
+  colors: the one allowed exception to the tokens-only color rule.
+- Sessions: Supabase refresh tokens do not expire on the free plan, so a sign-in lasts until sign-out or
+  cleared site data. Each web address (preview vs production) keeps its own sign-in.
 - Demo mode (owner request): a switch in Settings, remembered per device. On: every read and write goes
   to the in-memory sample data; nothing is sent to Supabase (verified in a browser test that records
   requests). Edits made in demo mode vanish on reload. Off: real data, untouched. The "Demo" badge in

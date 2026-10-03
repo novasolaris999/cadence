@@ -52,6 +52,33 @@ export async function verifyCode(email: string, code: string) {
   if (error) throw error;
 }
 
+/**
+ * Which sign-in methods are switched on in your Supabase project. Used to show the Google button only
+ * after Google has been set up, so it can never appear broken.
+ */
+export async function enabledProviders(): Promise<{ google: boolean }> {
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !key) return { google: false };
+  try {
+    const res = await fetch(`${url}/auth/v1/settings`, { headers: { apikey: key } });
+    const body = (await res.json()) as { external?: Record<string, boolean> };
+    return { google: body.external?.google === true };
+  } catch {
+    return { google: false };
+  }
+}
+
+/** Sends you to Google's account picker; Google sends you back here signed in. */
+export async function signInWithGoogle() {
+  if (!supabase) throw new Error('Supabase is not configured');
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: `${window.location.origin}/today` },
+  });
+  if (error) throw error;
+}
+
 export async function signOut() {
   await supabase?.auth.signOut();
 }
