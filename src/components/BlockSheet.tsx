@@ -78,6 +78,8 @@ function AddForm({ date, start: initialStart, onClose }: { date: ISODate; start:
           protected: false,
           active: true,
           createdAt: new Date().toISOString(), // an instant; the database sets its own
+          routineId: null,
+          routineOrder: 0,
         },
         { onSuccess: onClose },
       );
@@ -121,7 +123,7 @@ function AddForm({ date, start: initialStart, onClose }: { date: ISODate; start:
           autoFocus
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder={repeat === 'once' ? 'What is it? e.g. Dentist' : 'Name the routine, e.g. Gym session'}
+          placeholder={repeat === 'once' ? 'What is it? e.g. Dentist' : 'Name the habit, e.g. Gym session'}
           aria-label="Title"
           className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2.5 text-body-lg text-text outline-none placeholder:text-faint focus:border-primary"
         />
@@ -154,7 +156,7 @@ function AddForm({ date, start: initialStart, onClose }: { date: ISODate; start:
                 <Icon name="repeat" size={16} className="text-primary" /> Make it daily
               </span>
               <span className="text-body-sm text-muted">
-                {daily ? 'Becomes a routine on every day at this time.' : 'Only on this day.'}
+                {daily ? 'Becomes a habit on every day at this time.' : 'Only on this day.'}
               </span>
             </span>
             <Toggle label="Make it daily" checked={daily} onChange={setDaily} />
@@ -180,7 +182,7 @@ function AddForm({ date, start: initialStart, onClose }: { date: ISODate; start:
           onClick={save}
           className="w-full rounded-full bg-primary py-3 text-label-lg font-semibold text-on-primary shadow-card active:scale-[0.98] disabled:opacity-40"
         >
-          {repeat === 'weekly' ? 'Continue to target setup' : daily ? 'Add daily routine' : 'Add block'}
+          {repeat === 'weekly' ? 'Continue to habit setup' : daily ? 'Add daily habit' : 'Add block'}
         </button>
       </div>
     </Sheet>

@@ -2,7 +2,7 @@
 // (camelCase, minutes since midnight). Pure functions, unit tested.
 
 import { formatTime, parseTime } from '../domain/time';
-import type { Block, BlockOrigin, BlockStatus, Category, CategoryColor, DayLog, Settings, Target, ThemePref, Weekday } from '../domain/types';
+import type { Block, BlockOrigin, BlockStatus, Category, CategoryColor, DayLog, Routine, Settings, Target, ThemePref, Weekday } from '../domain/types';
 
 export interface SettingsRow {
   wake_anchor: string;
@@ -27,6 +27,22 @@ export interface TargetRow {
   preferred_days: number[];
   preferred_start: string;
   window_end: string | null;
+  protected: boolean;
+  active: boolean;
+  /** Read only: set by the database on insert. */
+  created_at?: string;
+  /** Added in migration 0002. Missing when the database has not been updated yet. */
+  routine_id?: string | null;
+  routine_order?: number;
+}
+export interface RoutineRow {
+  id: string;
+  category_id: string | null;
+  name: string;
+  icon: string | null;
+  frequency_per_week: number;
+  preferred_days: number[];
+  preferred_start: string;
   protected: boolean;
   active: boolean;
   /** Read only: set by the database on insert. */
@@ -101,6 +117,8 @@ export const targetFromRow = (r: TargetRow): Target => ({
   protected: r.protected,
   active: r.active,
   createdAt: r.created_at ?? null,
+  routineId: r.routine_id ?? null,
+  routineOrder: r.routine_order ?? 0,
 });
 
 export function targetToRow(t: Target): TargetRow {
@@ -119,6 +137,37 @@ export function targetToRow(t: Target): TargetRow {
     window_end: t.windowEnd === null ? null : time(t.windowEnd),
     protected: t.protected,
     active: t.active,
+    routine_id: t.routineId,
+    routine_order: t.routineOrder,
+  };
+}
+
+export const routineFromRow = (r: RoutineRow): Routine => ({
+  id: r.id,
+  categoryId: r.category_id,
+  name: r.name,
+  icon: r.icon,
+  frequencyPerWeek: r.frequency_per_week,
+  preferredDays: [...r.preferred_days].sort((a, b) => a - b) as Weekday[],
+  preferredStart: parseTime(r.preferred_start),
+  protected: r.protected,
+  active: r.active,
+  createdAt: r.created_at ?? null,
+});
+
+export function routineToRow(r: Routine): RoutineRow {
+  const days = [...new Set(r.preferredDays)].sort((a, b) => a - b);
+  return {
+    id: r.id,
+    category_id: r.categoryId,
+    name: r.name.trim(),
+    icon: r.icon,
+    // Picked days decide the frequency (the database checks this too).
+    frequency_per_week: days.length || r.frequencyPerWeek,
+    preferred_days: days,
+    preferred_start: time(r.preferredStart),
+    protected: r.protected,
+    active: r.active,
   };
 }
 

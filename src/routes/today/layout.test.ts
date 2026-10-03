@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { daySpan, GAP_H, HEADER_H, lanes, minuteAt, place, PX, ROW, segments, yOf } from './layout';
+import { daySpan, GAP_H, HEADER_H, lanes, minuteAt, place, PX, ROW, rowHeights, segments, yOf } from './layout';
 
 const b = (id: string, start: number, durationMin: number) => ({ id, start, durationMin });
 
@@ -71,5 +71,31 @@ describe('pixel layout', () => {
   it('maps minutes to y and back', () => {
     for (const m of [420, 450, 494, 600, 705, 750]) expect(minuteAt(items, yOf(items, m))).toBeCloseTo(m);
     expect(yOf(items, 430)).toBe(HEADER_H + 10 * PX);
+  });
+});
+
+describe('stretched rows (tall routine cards)', () => {
+  // 22:00-22:30 needs 150 px: its two rows grow to 75 px each; time labels stay the same.
+  const rowH = rowHeights([{ from: 1320, to: 1350, minPx: 150 }]);
+  const { items, height } = place([{ kind: 'rows', from: 1290, to: 1380 }], rowH);
+
+  it('splits a run into pieces of equal row height, header on the first only', () => {
+    expect(items.map((i) => [i.from, i.to, i.rowH, i.header])).toEqual([
+      [1290, 1320, ROW, true],
+      [1320, 1350, 75, false],
+      [1350, 1380, ROW, false],
+    ]);
+    expect(height).toBe(HEADER_H + 2 * ROW + 150 + 2 * ROW);
+  });
+
+  it('keeps minutes and pixels in step both ways', () => {
+    expect(yOf(items, 1320)).toBe(HEADER_H + 2 * ROW);
+    expect(yOf(items, 1350) - yOf(items, 1320)).toBe(150);
+    expect(minuteAt(items, yOf(items, 1335))).toBe(1335);
+    expect(minuteAt(items, yOf(items, 1365))).toBe(1365);
+  });
+
+  it('never shrinks a row below the normal height', () => {
+    expect(rowHeights([{ from: 0, to: 60, minPx: 10 }])(0)).toBe(ROW);
   });
 });

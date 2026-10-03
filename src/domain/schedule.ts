@@ -15,6 +15,7 @@
 
 import type { Block, ISODate, Minutes, Target, Weekday } from './types';
 import { addDays } from './time';
+import { isAnytime } from './routines';
 
 /**
  * When a target has no preferred days, its weekly frequency is spread with this fixed table.
@@ -64,7 +65,9 @@ export function planFill(targets: Target[], weekStart: ISODate, existing: Block[
   for (const t of targets) {
     if (!t.active) continue;
     for (const slot of targetSlots(t, weekStart)) {
-      if (!isUpcoming(slot.date, slot.start, ctx) || taken.has(slotKey(t.id, slot.date))) continue;
+      // An anytime habit has no time, so today's slot is still ahead all day.
+      const ahead = isAnytime(t) ? slot.date >= ctx.today : isUpcoming(slot.date, slot.start, ctx);
+      if (!ahead || taken.has(slotKey(t.id, slot.date))) continue;
       taken.add(slotKey(t.id, slot.date));
       out.push({
         id: ctx.newId(),

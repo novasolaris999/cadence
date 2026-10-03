@@ -1,10 +1,11 @@
 // Turns targets into blocks, using the pure rules in domain/schedule.ts and the DataApi for storage.
 // Works the same for Supabase and demo data.
 
-import type { DayMovePlan } from '../domain/moves';
+import type { DayMovePlan, GroupDayMovePlan } from '../domain/moves';
+import { withRoutine } from '../domain/routines';
 import { isUpcoming, planFill, planRerun, planTargetReplan, type PlanContext, type RerunPlan } from '../domain/schedule';
 import { addDays, minutesOfDay, startOfWeek, today } from '../domain/time';
-import type { Block, ISODate, Target } from '../domain/types';
+import type { Block, ISODate, Routine, Target } from '../domain/types';
 import type { DataApi } from './api';
 import { newId } from './api';
 
@@ -82,4 +83,45 @@ export async function applyDayMove(api: DataApi, plan: DayMovePlan, ctx = planCo
   const next: Target = { ...current, ...plan.target };
   await api.saveTarget(next);
   await syncTarget(api, next, ctx);
+}
+
+/**
+ * Saves a routine and its habits in order. Each habit gets the routine's days, start, and protected
+ * flag; habits taken out of the routine are archived (their history stays). Then every habit's blocks
+ * are lined up, exactly as when a single habit is saved. Returns the routine's next upcoming block.
+ */
+export async function saveRoutine(
+  api: DataApi,
+  routine: Routine,
+  habits: Target[],
+  removed: Target[],
+  ctx = planContext(),
+): Promise<Block | null> {
+  await api.saveRoutine(routine);
+  const saved = habits.map((h, i) => withRoutine(h, routine, i));
+  const dropped = removed.map((h) => ({ ...h, routineId: null, active: false }));
+  for (const h of [...saved, ...dropped]) await api.saveTarget(h);
+  if (routine.active) {
+    const thisWeek = startOfWeek(ctx.today);
+    await ensureWeek(api, thisWeek, ctx);
+    await ensureWeek(api, addDays(thisWeek, 7), ctx);
+  }
+  for (const h of [...saved, ...dropped]) await syncTarget(api, h, ctx);
+  const upcoming = (await Promise.all(saved.map((h) => api.listTargetBlocks(h.id, ctx.today))))
+    .flat()
+    .filter((b) => b.status === 'planned' && isUpcoming(b.date, b.start, ctx))
+    .sort((a, b) => (a.date === b.date ? a.start - b.start : a.date < b.date ? -1 : 1));
+  return upcoming[0] ?? null;
+}
+
+/** Moves a routine card to another day. For "every week", the routine's days change and its habits follow. */
+export async function applyGroupDayMove(api: DataApi, plan: GroupDayMovePlan, ctx = planContext()): Promise<void> {
+  for (const { id, ...patch } of plan.blocks) await api.updateBlock(id, patch);
+  if (!plan.routine) return;
+  const [routines, targets] = await Promise.all([api.listRoutines(), api.listTargets()]);
+  const current = routines.find((r) => r.id === plan.routine!.id);
+  if (!current) return;
+  const next: Routine = { ...current, ...plan.routine };
+  const habits = targets.filter((t) => t.routineId === next.id && t.active).sort((a, b) => a.routineOrder - b.routineOrder);
+  await saveRoutine(api, next, habits, [], ctx);
 }

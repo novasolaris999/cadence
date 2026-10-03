@@ -14,6 +14,8 @@ import {
   categoryToRow,
   dayLogFromRow,
   dayLogToRow,
+  routineFromRow,
+  routineToRow,
   settingsFromRow,
   settingsToRow,
   targetFromRow,
@@ -21,13 +23,14 @@ import {
   type BlockRow,
   type CategoryRow,
   type DayLogRow,
+  type RoutineRow,
   type SettingsRow,
   type TargetRow,
 } from './mappers';
 import { formatTime } from '../domain/time';
 
 /** Throws Supabase errors so TanStack Query can show and retry them. */
-function check(res: { error: { message: string } | null }): void {
+function check(res: { error: { message: string; code?: string } | null }): void {
   if (res.error) throw new Error(res.error.message);
 }
 
@@ -45,6 +48,18 @@ async function currentUserId(db: SupabaseClient): Promise<string> {
   if (!id) throw new Error('Not signed in');
   return id;
 }
+
+const TARGET_COLUMNS =
+  'id, category_id, name, description, icon, duration_min, frequency_per_week, preferred_days, preferred_start, window_end, protected, active, created_at';
+
+/**
+ * Codes for "that column or table does not exist": the database has not had migration 0002 yet.
+ * Until it has, the app keeps working without routines and shows a notice (see schemaNotice).
+ */
+const MISSING = new Set(['42703', '42P01', 'PGRST204', 'PGRST205']);
+let routinesMissing = false;
+/** True when the database still needs migration 0002 (routines). */
+export const needsRoutinesMigration = () => routinesMissing;
 
 const BLOCK_COLUMNS =
   'id, target_id, title, category_id, date, start_time, duration_min, status, completed_at, note, origin, scheduled_for, moved';
@@ -89,17 +104,42 @@ export function supabaseApi(db: SupabaseClient): DataApi {
     },
 
     async listTargets() {
-      const rows = read(
-        await db
-          .from('targets')
-          .select('id, category_id, name, description, icon, duration_min, frequency_per_week, preferred_days, preferred_start, window_end, protected, active, created_at')
-          .order('preferred_start')
-          .returns<TargetRow[]>(),
-      );
-      return rows.map(targetFromRow);
+      const res = await db
+        .from('targets')
+        .select(`${TARGET_COLUMNS}, routine_id, routine_order`)
+        .order('preferred_start')
+        .returns<TargetRow[]>();
+      if (res.error && MISSING.has(res.error.code)) {
+        routinesMissing = true;
+        const old = read(await db.from('targets').select(TARGET_COLUMNS).order('preferred_start').returns<TargetRow[]>());
+        return old.map(targetFromRow);
+      }
+      return read(res).map(targetFromRow);
     },
     async saveTarget(t) {
-      check(await db.from('targets').upsert(targetToRow(t)));
+      const row = targetToRow(t);
+      if (routinesMissing) {
+        delete row.routine_id;
+        delete row.routine_order;
+      }
+      check(await db.from('targets').upsert(row));
+    },
+
+    async listRoutines() {
+      const res = await db
+        .from('routines')
+        .select('id, category_id, name, icon, frequency_per_week, preferred_days, preferred_start, protected, active, created_at')
+        .order('preferred_start')
+        .returns<RoutineRow[]>();
+      if (res.error && MISSING.has(res.error.code)) {
+        routinesMissing = true;
+        return [];
+      }
+      return read(res).map(routineFromRow);
+    },
+    async saveRoutine(r) {
+      if (routinesMissing) throw new Error('Database update needed: run migration 0002 in Supabase first.');
+      check(await db.from('routines').upsert(routineToRow(r)));
     },
 
     async listBlocks(from, to) {
@@ -134,8 +174,7 @@ export function supabaseApi(db: SupabaseClient): DataApi {
         const [start, moved] = k.split('|');
         check(await db.from('blocks').update({ start_time: `${formatTime(Number(start))}:00`, moved: moved === 'true' }).in('id', ids));
       }
-      if (plan.target) {
-        const { id, preferredStart, windowEnd } = plan.target;
+      for (const { id, preferredStart, windowEnd } of plan.targets ?? []) {
         check(
           await db
             .from('targets')
@@ -145,6 +184,9 @@ export function supabaseApi(db: SupabaseClient): DataApi {
             })
             .eq('id', id),
         );
+      }
+      if (plan.routine) {
+        check(await db.from('routines').update({ preferred_start: `${formatTime(plan.routine.preferredStart)}:00` }).eq('id', plan.routine.id));
       }
     },
 

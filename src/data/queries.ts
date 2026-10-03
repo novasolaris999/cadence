@@ -4,12 +4,12 @@
 // TanStack Query caches results by key, refetches when you come back to the app, and lets
 // mutations update the screen before the save finishes (optimistic updates).
 
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import type { DayMovePlan, MovePlan } from '../domain/moves';
-import type { Block, Category, DayLog, ISODate, Settings, Target } from '../domain/types';
+import { useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import type { DayMovePlan, GroupDayMovePlan, MovePlan } from '../domain/moves';
+import type { Block, Category, DayLog, ISODate, Routine, Settings, Target } from '../domain/types';
 import { ensureSetup, getApi, isDemo, setDemo } from './index';
 import { localNowStamp } from './localStamp';
-import { afterTargetSaved, applyDayMove, ensureWeek, rerunWeek } from './scheduling';
+import { afterTargetSaved, applyDayMove, applyGroupDayMove, ensureWeek, rerunWeek, saveRoutine } from './scheduling';
 import { addDays, formatDayShort, formatTime, startOfWeek, today as todayISO } from '../domain/time';
 import { toast } from '../components/Toaster';
 
@@ -21,6 +21,7 @@ export const keys = {
   settings: () => [mode(), 'settings'] as const,
   categories: () => [mode(), 'categories'] as const,
   targets: () => [mode(), 'targets'] as const,
+  routines: () => [mode(), 'routines'] as const,
   blocks: (from: ISODate, to: ISODate) => [mode(), 'blocks', from, to] as const,
   allBlocks: () => [mode(), 'blocks'] as const,
   targetBlocks: (targetId: string | null, from: ISODate) => [mode(), 'blocks', 'target', targetId, from] as const,
@@ -113,6 +114,31 @@ export function useSaveTarget() {
   });
 }
 
+export function useRoutines() {
+  return useQuery<Routine[]>({ queryKey: keys.routines(), queryFn: () => getApi().listRoutines() });
+}
+
+/** Create or update a routine with its habits in order (removed habits are archived). */
+export function useSaveRoutine() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ routine, habits, removed }: { routine: Routine; habits: Target[]; removed: Target[] }) => {
+      const created = !(qc.getQueryData<Routine[]>(keys.routines()) ?? []).some((r) => r.id === routine.id);
+      const first = await saveRoutine(getApi(), routine, habits, removed);
+      return { created, first };
+    },
+    onSuccess: ({ created, first }, { routine }) => {
+      if (!created) return;
+      toast(first ? `${routine.name} added: first ${whenLabel(first.date)} at ${formatTime(first.start)}` : `${routine.name} added`, 'info');
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: keys.routines() });
+      qc.invalidateQueries({ queryKey: keys.targets() });
+      qc.invalidateQueries({ queryKey: keys.allBlocks() });
+    },
+  });
+}
+
 /** 'today', 'tomorrow', or 'Mon, Oct 5'. */
 function whenLabel(date: ISODate): string {
   const t = todayISO();
@@ -153,6 +179,14 @@ export function useTargetBlocks(targetId: string | null, from: ISODate) {
     enabled: targetId !== null,
     queryFn: () => getApi().listTargetBlocks(targetId!, from),
   });
+}
+
+/** Several habits' blocks from a date on (moving a routine card). */
+export function useHabitsBlocks(targetIds: string[], from: ISODate): Block[] {
+  const lists = useQueries({
+    queries: targetIds.map((id) => ({ queryKey: keys.targetBlocks(id, from), queryFn: () => getApi().listTargetBlocks(id, from) })),
+  });
+  return lists.flatMap((q) => q.data ?? []);
 }
 
 export function useDayLogs(from: ISODate, to: ISODate) {
@@ -249,6 +283,7 @@ export function useApplyMove() {
     onError: (_e, _v, ctx) => ctx?.undo(),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: keys.allBlocks() });
+      qc.invalidateQueries({ queryKey: keys.routines() });
       qc.invalidateQueries({ queryKey: keys.targets() });
     },
   });
@@ -281,6 +316,42 @@ export function useRerunWeek() {
       const n = plan.changes.length;
       toast(n ? `Week re-run: ${n} block${n === 1 ? '' : 's'} updated` : 'Your week already matches your targets', 'info');
     },
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks() }),
+  });
+}
+
+/** Moves a routine card (all its habit blocks) to another day. */
+export function useApplyGroupDayMove() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (plan: GroupDayMovePlan) => applyGroupDayMove(getApi(), plan),
+    onMutate: async (plan) => {
+      await qc.cancelQueries({ queryKey: keys.allBlocks() });
+      const undos = plan.blocks.map(({ id, ...patch }) => patchCachedBlocks(qc, id, patch));
+      return { undo: () => undos.reverse().forEach((u) => u()) };
+    },
+    onError: (_e, _v, ctx) => ctx?.undo(),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: keys.allBlocks() });
+      qc.invalidateQueries({ queryKey: keys.targets() });
+      qc.invalidateQueries({ queryKey: keys.routines() });
+    },
+  });
+}
+
+/** Sets several blocks to one status at once (a routine's "Complete all"). Shows at once. */
+export function useSetBlocksStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ blocks, status }: { blocks: Block[]; status: Block['status'] }) => {
+      for (const b of blocks) if (b.status !== status) await getApi().updateBlock(b.id, statusPatch(status, b));
+    },
+    onMutate: async ({ blocks, status }) => {
+      await qc.cancelQueries({ queryKey: keys.allBlocks() });
+      const undos = blocks.filter((b) => b.status !== status).map((b) => patchCachedBlocks(qc, b.id, statusPatch(status, b)));
+      return { undo: () => undos.reverse().forEach((u) => u()) };
+    },
+    onError: (_e, _v, ctx) => ctx?.undo(),
     onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks() }),
   });
 }

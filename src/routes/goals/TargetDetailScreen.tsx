@@ -1,24 +1,19 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { cx } from '../../components/cx';
 import { catBg, catSoft } from '../../components/categoryColor';
-import { Icon, isIconName, type IconName } from '../../components/Icon';
+import { Icon, isIconName } from '../../components/Icon';
 import { Page } from '../../components/Page';
 import { Toggle } from '../../components/Toggle';
-import { Chip, DURATIONS, Field, TimeInput } from '../../components/form';
+import { Chip, DaysPicker, DURATIONS, Field, FormCard, HABIT_ICONS, SectionTitle, TimeInput } from '../../components/form';
 import { newId } from '../../data/api';
-import { useBlocks, useCategories, useSaveTarget, useTargets } from '../../data/queries';
+import { useBlocks, useCategories, useRoutines, useSaveTarget, useTargets } from '../../data/queries';
 import { pct, tally, targetStreak } from '../../domain/metrics';
 import { targetDays } from '../../domain/schedule';
-import { addDays, formatDays, formatDuration, formatTime, weekdayInitial } from '../../domain/time';
+import { addDays, formatDays, formatDuration, formatTime } from '../../domain/time';
 import type { Target, Weekday } from '../../domain/types';
+import { QUICK, ROUTINE_DURATIONS, habitLength } from '../../domain/routines';
 import { useNow } from '../../theme/useNow';
-
-const ICONS: IconName[] = [
-  'fitness_center', 'sports_tennis', 'directions_run', 'self_improvement', 'pill', 'wb_sunny',
-  'menu_book', 'edit_note', 'psychology', 'favorite', 'restaurant', 'local_cafe', 'work', 'bedtime',
-];
-const WEEKDAYS: Weekday[] = [1, 2, 3, 4, 5, 6, 7];
 
 const blank = (): Target => ({
   id: newId(),
@@ -34,6 +29,8 @@ const blank = (): Target => ({
   protected: false,
   active: true,
   createdAt: new Date().toISOString(), // an instant, not a schedule date; the database sets its own
+  routineId: null,
+  routineOrder: 0,
 });
 
 /**
@@ -57,8 +54,15 @@ function fromParams(p: URLSearchParams): Target {
   };
 }
 
-/** A target's rules: what it is, when it lands, and how the scheduler treats it (targets-light.html). */
+/** A habit's rules: what it is, when it lands, and how the scheduler treats it (targets-light.html). */
+/** A fresh form per page, so going from one habit straight to another never shows stale edits. */
 export function TargetDetailScreen() {
+  const { targetId } = useParams();
+
+  return <TargetDetailScreenForm key={targetId ?? 'new'} />;
+}
+
+function TargetDetailScreenForm() {
   const { targetId } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -67,6 +71,7 @@ export function TargetDetailScreen() {
   const { data: categories = [] } = useCategories();
   const save = useSaveTarget();
   const existing = targets?.find((t) => t.id === targetId);
+  const { data: routines = [] } = useRoutines();
   const [draft, setDraft] = useState<Target | null>(() => (targetId ? null : fromParams(params)));
 
   useEffect(() => {
@@ -79,7 +84,7 @@ export function TargetDetailScreen() {
     return (
       <Page>
         <p className="py-10 text-center text-muted">
-          Target not found. <Link to="/goals" className="text-primary-ink underline">Back to goals</Link>
+          Habit not found. <Link to="/goals" className="text-primary-ink underline">Back to habits</Link>
         </p>
       </Page>
     );
@@ -92,33 +97,36 @@ export function TargetDetailScreen() {
   const stats = tally(mine, now.today);
   const days = targetDays(draft);
   const canSave = draft.name.trim().length > 0;
+  // In a routine, the routine decides days, time, and protected; the habit keeps its name and length.
+  const routine = routines.find((r) => r.id === draft.routineId) ?? null;
+  const quick = draft.durationMin === QUICK;
+  const durations = routine ? ROUTINE_DURATIONS : [QUICK, ...DURATIONS];
 
-  const toggleDay = (w: Weekday) => {
-    const has = draft.preferredDays.includes(w);
-    const next = has ? draft.preferredDays.filter((d) => d !== w) : [...draft.preferredDays, w].sort((a, b) => a - b);
-    // Rule: picked days decide the frequency. With no days, frequency is set by hand.
-    setDraft({ ...draft, preferredDays: next, frequencyPerWeek: next.length || draft.frequencyPerWeek });
-  };
 
-  const commit = (t: Target) => save.mutate(t, { onSuccess: () => navigate('/goals') });
+
+  // A quick habit outside a routine has no time: it shows under "Anytime".
+  const commit = (t: Target) =>
+    save.mutate(t.durationMin === QUICK && !t.routineId ? { ...t, preferredStart: 0, windowEnd: null } : t, {
+      onSuccess: () => navigate('/goals'),
+    });
 
   return (
     <Page>
       <div className="flex flex-col gap-4 pb-20">
         <div className="flex items-center gap-2">
-          <Link to="/goals" aria-label="Back to goals" className="rounded-full p-1.5 text-muted hover:bg-surface-2">
+          <Link to="/goals" aria-label="Back to habits" className="rounded-full p-1.5 text-muted hover:bg-surface-2">
             <Icon name="arrow_back" />
           </Link>
           <div className="flex min-w-0 flex-col">
             <span className="flex items-center gap-1 text-label-sm font-bold uppercase tracking-wider text-hit-ink">
-              <Icon name="event_repeat" size={14} /> Target rules
+              <Icon name="event_repeat" size={14} /> Habit
             </span>
-            <h1 className="truncate text-headline-lg font-bold">{existing ? draft.name || 'Untitled' : 'New target'}</h1>
+            <h1 className="truncate text-headline-lg font-bold">{existing ? draft.name || 'Untitled' : 'New habit'}</h1>
           </div>
         </div>
 
         {/* Identity */}
-        <Card>
+        <FormCard>
           <div className="flex items-start gap-3">
             <div className={cx('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-text', catSoft(category))}>
               <Icon name={isIconName(draft.icon) ? draft.icon : 'check_circle'} size={22} />
@@ -127,7 +135,7 @@ export function TargetDetailScreen() {
               <input
                 value={draft.name}
                 onChange={(e) => set('name', e.target.value)}
-                placeholder="Name, e.g. Gym session"
+                placeholder="Name, e.g. Gym session or Vitamin D"
                 aria-label="Name"
                 className="w-full rounded-md bg-transparent font-display text-headline-sm font-bold outline-none placeholder:text-faint"
               />
@@ -141,7 +149,7 @@ export function TargetDetailScreen() {
             </div>
           </div>
           <div className="no-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1 pt-1">
-            {ICONS.map((i) => (
+            {HABIT_ICONS.map((i) => (
               <button
                 key={i}
                 type="button"
@@ -167,74 +175,56 @@ export function TargetDetailScreen() {
               ))}
             </div>
           </Field>
-        </Card>
+        </FormCard>
 
         {/* Schedule */}
         <SectionTitle color="bg-hit">Schedule</SectionTitle>
-        <Card>
-          <Field label="Duration" hint={formatDuration(draft.durationMin)}>
+        <FormCard>
+          <Field label="Length" hint={habitLength(draft.durationMin)}>
             <div className="flex flex-wrap gap-1.5">
-              {DURATIONS.map((d) => (
+              {durations.map((d) => (
                 <Chip key={d} active={draft.durationMin === d} onClick={() => set('durationMin', d)}>
-                  {formatDuration(d)}
+                  {d === QUICK ? (
+                    <>
+                      <Icon name="bolt" size={14} /> Quick
+                    </>
+                  ) : (
+                    formatDuration(d)
+                  )}
                 </Chip>
               ))}
             </div>
-          </Field>
-          <Field label="Days" hint={formatDays(days, draft.frequencyPerWeek)}>
-            <button
-              type="button"
-              aria-pressed={draft.preferredDays.length === 7}
-              onClick={() =>
-                setDraft({
-                  ...draft,
-                  preferredDays: draft.preferredDays.length === 7 ? [] : [1, 2, 3, 4, 5, 6, 7],
-                  frequencyPerWeek: draft.preferredDays.length === 7 ? draft.frequencyPerWeek : 7,
-                })
-              }
-              className={cx(
-                'flex items-center justify-center gap-1.5 self-start rounded-full border px-3 py-1 text-label-md font-semibold',
-                draft.preferredDays.length === 7
-                  ? 'border-primary bg-primary text-on-primary'
-                  : 'border-border bg-surface-2 text-muted hover:text-text',
-              )}
-            >
-              <Icon name="repeat" size={16} /> Every day
-            </button>
-            <div className="grid grid-cols-7 gap-1.5">
-              {WEEKDAYS.map((w) => (
-                <button
-                  key={w}
-                  type="button"
-                  aria-pressed={draft.preferredDays.includes(w)}
-                  onClick={() => toggleDay(w)}
-                  className={cx(
-                    'h-9 rounded-lg text-label-lg font-semibold',
-                    draft.preferredDays.includes(w)
-                      ? 'bg-primary text-on-primary'
-                      : days.includes(w)
-                        ? 'bg-primary/10 text-primary-ink ring-1 ring-inset ring-primary/30'
-                        : 'bg-surface-2 text-muted',
-                  )}
-                >
-                  {weekdayInitial(w)}
-                </button>
-              ))}
-            </div>
-            {draft.preferredDays.length === 0 && (
-              <div className="mt-2 flex items-center justify-between rounded-lg bg-surface-2 px-3 py-2">
-                <span className="text-body-sm text-muted">No days picked: spread across the week</span>
-                <Stepper
-                  value={draft.frequencyPerWeek}
-                  min={1}
-                  max={7}
-                  label="Times per week"
-                  format={(n) => `${n}x`}
-                  onChange={(n) => set('frequencyPerWeek', n)}
-                />
-              </div>
+            {quick && (
+              <p className="mt-1 text-body-sm text-faint">
+                {routine ? 'A tick inside the routine, no time of its own.' : 'A quick tick with no time slot. It shows under Anytime on Today.'}
+              </p>
             )}
           </Field>
+          {routine ? (
+            <Link
+              to={`/goals/routine/${routine.id}`}
+              className="flex items-center gap-3 rounded-xl bg-primary/10 p-3 text-left hover:bg-primary/15"
+            >
+              <Icon name={isIconName(routine.icon) ? routine.icon : 'event_repeat'} size={22} className="text-primary-ink" />
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-label-lg font-semibold text-primary-ink">Part of {routine.name}</span>
+                <span className="text-body-sm text-muted">
+                  {formatDays(targetDays(routine), routine.frequencyPerWeek)} at {formatTime(routine.preferredStart)}. Days and time come from
+                  the routine.
+                </span>
+              </span>
+              <Icon name="chevron_right" className="text-faint" />
+            </Link>
+          ) : (
+          <>
+          <Field label="Days" hint={formatDays(days, draft.frequencyPerWeek)}>
+            <DaysPicker
+              days={draft.preferredDays}
+              frequency={draft.frequencyPerWeek}
+              onChange={(preferredDays, frequencyPerWeek) => setDraft({ ...draft, preferredDays, frequencyPerWeek })}
+            />
+          </Field>
+          {!quick && (
           <Field label="Start time">
             <div className="flex flex-wrap items-center gap-2">
               <TimeInput label="Start time" value={draft.preferredStart} onChange={(m) => set('preferredStart', m)} />
@@ -261,11 +251,15 @@ export function TargetDetailScreen() {
               {draft.windowEnd !== null && `; the window to ${formatTime(draft.windowEnd)} is for reference`}.
             </p>
           </Field>
-        </Card>
+          )}
+          </>
+          )}
+        </FormCard>
 
         {/* Rules */}
-        <SectionTitle color="bg-primary">Rules</SectionTitle>
-        <Card>
+        {!routine && <SectionTitle color="bg-primary">Rules</SectionTitle>}
+        {!routine && (
+        <FormCard>
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 flex-col">
               <span className="flex items-center gap-1.5 text-label-lg font-semibold">
@@ -275,10 +269,11 @@ export function TargetDetailScreen() {
             </div>
             <Toggle label="Protected" checked={draft.protected} onChange={(v) => set('protected', v)} />
           </div>
-        </Card>
+        </FormCard>
+        )}
 
         {existing && (
-          <Card>
+          <FormCard>
             <div className="flex items-center justify-between">
               <span className="text-label-sm font-bold uppercase tracking-wider text-faint">Last 8 weeks</span>
               <span className="text-label-md text-muted">
@@ -291,7 +286,7 @@ export function TargetDetailScreen() {
                 {stats.hits} hits · {stats.misses} misses
               </span>
             </div>
-          </Card>
+          </FormCard>
         )}
 
         {existing && (
@@ -301,7 +296,7 @@ export function TargetDetailScreen() {
             className="flex items-center justify-center gap-1.5 rounded-full border border-border py-2.5 text-label-lg font-semibold text-muted hover:text-text"
           >
             <Icon name="archive" size={18} />
-            {draft.active ? 'Archive target' : 'Restore target'}
+            {draft.active ? 'Archive habit' : 'Restore habit'}
           </button>
         )}
       </div>
@@ -313,50 +308,9 @@ export function TargetDetailScreen() {
           onClick={() => commit(draft)}
           className="w-full rounded-full bg-primary py-3 text-label-lg font-semibold text-on-primary shadow-float active:scale-[0.98] disabled:opacity-40"
         >
-          {existing ? 'Save changes' : 'Create target'}
+          {existing ? 'Save changes' : 'Create habit'}
         </button>
       </div>
     </Page>
-  );
-}
-
-function Card({ children }: { children: ReactNode }) {
-  return <section className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 shadow-card">{children}</section>;
-}
-
-function SectionTitle({ children, color }: { children: ReactNode; color: string }) {
-  return (
-    <h2 className="flex items-center gap-2 text-headline-sm font-bold">
-      <span className={cx('h-4 w-1.5 rounded-full', color)} />
-      {children}
-    </h2>
-  );
-}
-
-function Stepper({
-  value,
-  min,
-  max,
-  label,
-  format,
-  onChange,
-}: {
-  value: number;
-  min: number;
-  max: number;
-  label: string;
-  format: (n: number) => string;
-  onChange: (n: number) => void;
-}) {
-  return (
-    <div className="flex items-center gap-1" role="group" aria-label={label}>
-      <button type="button" aria-label="Fewer" disabled={value <= min} onClick={() => onChange(value - 1)} className="h-7 w-7 rounded-full bg-surface text-muted disabled:opacity-30">
-        –
-      </button>
-      <span className="w-8 text-center text-label-lg font-semibold">{format(value)}</span>
-      <button type="button" aria-label="More" disabled={value >= max} onClick={() => onChange(value + 1)} className="h-7 w-7 rounded-full bg-surface text-muted disabled:opacity-30">
-        +
-      </button>
-    </div>
   );
 }

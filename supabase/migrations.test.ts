@@ -132,3 +132,46 @@ describe('constraints', () => {
     expect(s.rows).toEqual([{ wake_anchor: '07:00:00', sleep_anchor: '23:00:00', theme: 'system' }]);
   });
 });
+
+describe('routines (0002)', () => {
+  const routine = (user: string, name = 'Sleep') =>
+    as<{ id: string }>(user, `insert into public.routines (name, frequency_per_week, preferred_days, preferred_start) values ('${name}', 7, '{1,2,3,4,5,6,7}', '22:00') returning id`);
+  const habit = (user: string, routineId: string | null, duration: number) =>
+    as(
+      user,
+      `insert into public.targets (name, duration_min, frequency_per_week, preferred_start, routine_id) values ('H', ${duration}, 7, '22:00', ${routineId ? `'${routineId}'` : 'null'})`,
+    );
+
+  it('keeps routines private like every other table', async () => {
+    await routine(ALICE);
+    expect((await as(BOB, 'select * from public.routines')).rows).toEqual([]);
+    await expect(as(null, 'select * from public.routines')).rejects.toThrow(/permission denied/);
+  });
+
+  it('allows quick habits (0 min) anywhere, and 5-minute steps only inside a routine', async () => {
+    const r = (await routine(ALICE, 'Morning')).rows[0]!.id;
+    await expect(habit(ALICE, null, 0)).resolves.toBeDefined();
+    await expect(habit(ALICE, r, 10)).resolves.toBeDefined();
+    await expect(habit(ALICE, null, 10)).rejects.toThrow(/check/);
+    await expect(habit(ALICE, r, 7)).rejects.toThrow(/check/);
+  });
+
+  it('will not put a habit into another user’s routine', async () => {
+    const r = (await routine(BOB, 'Bob routine')).rows[0]!.id;
+    await expect(habit(ALICE, r, 0)).rejects.toThrow(/foreign key/);
+  });
+
+  it('accepts quick blocks (0 min)', async () => {
+    await expect(
+      as(ALICE, `insert into public.blocks (title, date, start_time, duration_min) values ('Vitamin D', '2026-10-05', '00:00', 0)`),
+    ).resolves.toBeDefined();
+  });
+
+  it('keeps the habits when a routine is deleted', async () => {
+    const r = (await routine(ALICE, 'Temp')).rows[0]!.id;
+    await habit(ALICE, r, 0);
+    await as(ALICE, `delete from public.routines where id = '${r}'`);
+    const left = await as<{ n: number }>(ALICE, `select count(*)::int as n from public.targets where routine_id is null and duration_min = 0`);
+    expect(left.rows[0]!.n).toBeGreaterThanOrEqual(2);
+  });
+});

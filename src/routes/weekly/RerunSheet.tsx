@@ -1,7 +1,8 @@
 import { cx } from '../../components/cx';
 import { Icon, type IconName } from '../../components/Icon';
 import { Sheet } from '../../components/Sheet';
-import { useRerunWeek } from '../../data/queries';
+import { useRerunWeek, useRoutines } from '../../data/queries';
+import { isAnytime } from '../../domain/routines';
 import type { RerunChange, RerunPlan } from '../../domain/schedule';
 import { formatDayShort, formatTime } from '../../domain/time';
 import type { ISODate, Target } from '../../domain/types';
@@ -30,17 +31,26 @@ export function RerunSheet({
   onClose: () => void;
 }) {
   const rerun = useRerunWeek();
-  const name = (id: string) => targets.find((t) => t.id === id)?.name ?? 'Target';
+  const { data: routines = [] } = useRoutines();
+  const name = (id: string) => {
+    const t = targets.find((x) => x.id === id);
+    const r = t?.routineId ? routines.find((x) => x.id === t.routineId) : undefined;
+    return t ? (r ? `${t.name} (${r.name})` : t.name) : 'Habit';
+  };
+  const anytime = (id: string) => {
+    const t = targets.find((x) => x.id === id);
+    return t ? isAnytime(t) : false;
+  };
   const n = plan.changes.length;
 
   return (
     <Sheet open={open} onClose={onClose} title="Re-run this week?">
       {n === 0 ? (
-        <p className="text-body-md text-muted">Your week already matches your targets. Nothing to change.</p>
+        <p className="text-body-md text-muted">Your week already matches your habits. Nothing to change.</p>
       ) : (
         <>
           <p className="-mt-1 mb-3 text-body-sm text-muted">
-            {n} change{n === 1 ? '' : 's'} to bring the rest of the week back in line with your targets:
+            {n} change{n === 1 ? '' : 's'} to bring the rest of the week back in line with your habits:
           </p>
           <ul className="flex max-h-[40vh] flex-col gap-1.5 overflow-y-auto">
             {plan.changes.map((c, i) => {
@@ -52,7 +62,7 @@ export function RerunSheet({
                   </span>
                   <span className="flex min-w-0 flex-col">
                     <span className="truncate text-label-lg font-semibold">
-                      {name(c.targetId)}, {formatDayShort(c.date)} · {formatTime(c.start)}
+                      {name(c.targetId)}, {formatDayShort(c.date)}{anytime(c.targetId) ? '' : ` · ${formatTime(c.start)}`}
                     </span>
                     <span className="text-body-sm text-muted">
                       {c.kind === 'reset' ? `${k.verb} (now ${formatTime(c.fromStart)})` : k.verb}

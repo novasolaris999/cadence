@@ -1,4 +1,4 @@
-import type { Block, Target } from './types';
+import type { Block, Routine, Target } from './types';
 
 let seq = 0;
 
@@ -32,6 +32,24 @@ export function target(p: Partial<Target> = {}): Target {
     preferredDays: [],
     preferredStart: 12 * 60,
     windowEnd: null,
+    protected: false,
+    active: true,
+    createdAt: null,
+    routineId: null,
+    routineOrder: 0,
+    ...p,
+  };
+}
+
+export function routine(p: Partial<Routine> = {}): Routine {
+  return {
+    id: 'r1',
+    categoryId: 'c1',
+    name: 'Sleep routine',
+    icon: 'bedtime',
+    frequencyPerWeek: 7,
+    preferredDays: [1, 2, 3, 4, 5, 6, 7],
+    preferredStart: 22 * 60,
     protected: false,
     active: true,
     createdAt: null,

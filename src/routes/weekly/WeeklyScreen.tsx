@@ -20,10 +20,12 @@ import { Fab } from '../../components/Fab';
 import { Icon } from '../../components/Icon';
 import { MoveScopeSheet, type PendingMove } from '../../components/MoveScopeSheet';
 import { Page } from '../../components/Page';
-import { useBlockViews, type BlockView } from '../../components/blockView';
+import { useBlockViews, useDayItems, type BlockView } from '../../components/blockView';
+import { RoutineSheet } from '../../components/RoutineParts';
 import { Ring } from '../../charts/Ring';
-import { useApplyDayMove, useBlocks, useCategories, useEnsureWeek, useTargets, useToggleBlockDone, useUpdateBlock } from '../../data/queries';
-import { planDayMove } from '../../domain/moves';
+import { useApplyDayMove, useApplyGroupDayMove, useBlocks, useCategories, useEnsureWeek, useTargets, useToggleBlockDone, useUpdateBlock } from '../../data/queries';
+import { planDayMove, planGroupDayMove } from '../../domain/moves';
+import { isAnytime } from '../../domain/routines';
 import { planRerun } from '../../domain/schedule';
 import { dayProgress } from '../../domain/metrics';
 import {
@@ -44,7 +46,10 @@ import { DayMoveSheet, type PendingDayMove } from './DayMoveSheet';
 import { RerunSheet } from './RerunSheet';
 import { WeeklyCard } from './WeeklyCard';
 
-const PERIODS = ['Morning', 'Afternoon', 'Evening'] as const;
+const PERIODS = ['Anytime', 'Morning', 'Afternoon', 'Evening'] as const;
+
+/** Anytime habits (quick, outside a routine) get their own section; everything else goes by start time. */
+const sectionOf = (v: BlockView) => (v.target && isAnytime(v.target) ? 'Anytime' : periodOf(v.block.start));
 
 /** The day under the finger. The pinned strip (phones) wins over the rings it may cover. */
 const collide: CollisionDetection = (args) => {
@@ -83,6 +88,12 @@ export function WeeklyScreen() {
   const toggle = useToggleBlockDone();
   const update = useUpdateBlock();
   const views = useBlockViews(blocks);
+  // Routine habits sharing a day and time become one routine card.
+  const { items, anytime } = useDayItems(views);
+  const cards = useMemo(() => [...anytime, ...items], [anytime, items]);
+  const [routineOpen, setRoutineOpen] = useState<string | null>(null);
+  const openRoutine = cards.find((v) => v.block.id === routineOpen) ?? null;
+  const groupMove = useApplyGroupDayMove();
   const [sheet, setSheet] = useState<BlockSheetMode | null>(null);
   const [pending, setPending] = useState<PendingMove | null>(null);
   const [dayPending, setDayPending] = useState<PendingDayMove | null>(null);
@@ -90,8 +101,8 @@ export function WeeklyScreen() {
   const dayMove = useApplyDayMove();
 
   const visible = useMemo(
-    () => (filter === 'all' ? views : views.filter((v) => v.category?.id === filter)),
-    [views, filter],
+    () => (filter === 'all' ? cards : cards.filter((v) => v.category?.id === filter)),
+    [cards, filter],
   );
   const byDate = useMemo(() => {
     const map = new Map<ISODate, BlockView[]>(dates.map((d) => [d, []]));
@@ -163,7 +174,7 @@ export function WeeklyScreen() {
   const lastDragEnd = useRef(0);
 
   const onDragStart = (e: DragStartEvent) => {
-    setDragging(views.find((v) => v.block.id === e.active.id) ?? null);
+    setDragging(cards.find((v) => v.block.id === e.active.id) ?? null);
     navigator.vibrate?.(10);
   };
   const onDragEnd = (e: DragEndEvent) => {
@@ -172,14 +183,19 @@ export function WeeklyScreen() {
     setDragging(null);
     const to = e.over?.data.current?.date as ISODate | undefined;
     if (!view || !to || to === view.block.date) return;
-    const { block, target } = view;
+    const { block, target, group } = view;
     pick(to);
-    if (target && block.status === 'planned') setDayPending({ block, target, toDate: to });
+    if (group) {
+      const members = group.members.map((m) => m.block);
+      if (members.every((b) => b.status === 'planned')) setDayPending({ block, target: null, toDate: to, group: { routine: group.routine, members } });
+      else groupMove.mutate(planGroupDayMove(members, to, 'once', targets, group.routine, []));
+    } else if (target && block.status === 'planned') setDayPending({ block, target, toDate: to });
     else dayMove.mutate(planDayMove(block, to, 'once', target, []));
   };
   const open = (view: BlockView) => {
     if (Date.now() - lastDragEnd.current < 300) return; // the click that ends a mouse drag
-    setSheet({ kind: 'edit', view });
+    if (view.group) setRoutineOpen(view.block.id);
+    else setSheet({ kind: 'edit', view });
   };
 
   // ----- Scheduler card and Re-run -----
@@ -274,7 +290,7 @@ export function WeeklyScreen() {
               </span>
               <p className="text-body-sm text-muted">
                 <strong className="font-semibold text-text">
-                  {activeTargets.length} active target{activeTargets.length === 1 ? '' : 's'}
+                  {activeTargets.length} active habit{activeTargets.length === 1 ? '' : 's'}
                 </strong>{' '}
                 placed as {generated.length} block{generated.length === 1 ? '' : 's'} this week.
                 {!pastWeek && rerun.keptMoved > 0 && ` ${rerun.keptMoved} moved by hand ${rerun.keptMoved === 1 ? 'stays' : 'stay'} put.`}
@@ -283,8 +299,8 @@ export function WeeklyScreen() {
                 {pastWeek
                   ? 'Past weeks stay as they happened.'
                   : changes
-                    ? `${changes} block${changes === 1 ? ' differs' : 's differ'} from your targets. Re-run shows them first.`
-                    : 'Everything matches your targets.'}
+                    ? `${changes} block${changes === 1 ? ' differs' : 's differ'} from your habits. Re-run shows them first.`
+                    : 'Everything matches your habits.'}
               </p>
             </div>
           </div>
@@ -354,7 +370,7 @@ export function WeeklyScreen() {
         <DragOverlay dropAnimation={null} zIndex={55}>
           {dragging && (
             <div className="rotate-1 scale-[1.03] opacity-95 drop-shadow-xl">
-              <WeeklyCard view={dragging} missed={false} onToggle={() => {}} onOpen={() => {}} />
+              <WeeklyCard view={dragging} missed={false} onToggle={() => {}} onToggleId={() => {}} onOpen={() => {}} />
             </div>
           )}
         </DragOverlay>
@@ -364,6 +380,13 @@ export function WeeklyScreen() {
       <BlockSheet mode={sheet} onClose={() => setSheet(null)} onMove={requestMove} />
       <MoveScopeSheet pending={pending} onDone={() => setPending(null)} />
       <DayMoveSheet pending={dayPending} weekBlocks={blocks ?? []} onDone={() => setDayPending(null)} />
+      <RoutineSheet
+        card={openRoutine?.group ?? null}
+        category={openRoutine?.category ?? null}
+        date={openRoutine?.block.date ?? null}
+        today={now.today}
+        onClose={() => setRoutineOpen(null)}
+      />
       <RerunSheet open={rerunOpen} plan={rerun} weekStart={monday} targets={targets} onClose={() => setRerunOpen(false)} />
     </Page>
   );
@@ -425,7 +448,7 @@ function DaySection({
         <p className="rounded-xl border border-dashed border-border px-3 py-3 text-body-sm text-faint">Nothing scheduled</p>
       ) : (
         PERIODS.map((p) => {
-          const inPeriod = views.filter((v) => periodOf(v.block.start) === p);
+          const inPeriod = views.filter((v) => sectionOf(v) === p);
           if (inPeriod.length === 0) return null;
           return (
             <div key={p} className="flex flex-col gap-2">
@@ -439,6 +462,7 @@ function DaySection({
                     view={v}
                     missed={date < today && v.block.status === 'planned'}
                     onToggle={() => onToggle(v.block.id)}
+                    onToggleId={onToggle}
                     onOpen={() => onOpen(v)}
                   />
                 </DraggableCard>

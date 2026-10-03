@@ -159,7 +159,7 @@ function CategoryEditor() {
           </button>
         )}
       </div>
-      {confirm && <p className="text-label-sm text-faint">Targets in a deleted category keep working, just without a category.</p>}
+      {confirm && <p className="text-label-sm text-faint">Habits in a deleted category keep working, just without a category.</p>}
     </div>
   );
 }

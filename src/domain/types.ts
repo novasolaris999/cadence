@@ -33,13 +33,17 @@ export interface Category {
   sortOrder: number;
 }
 
-/** The definition of a recurring routine. */
+/**
+ * A habit: something you want to do on certain days (the UI calls it a habit; the code and the
+ * database keep the original name, target).
+ */
 export interface Target {
   id: string;
   categoryId: string | null;
   name: string;
   description: string | null;
   icon: string | null;
+  /** 0 = a quick habit: a tick, no time slot. Inside a routine, 5-minute steps; otherwise multiples of 15. */
   durationMin: number;
   frequencyPerWeek: number;
   /** Empty means "any days": the scheduler spreads frequencyPerWeek across the week. */
@@ -52,6 +56,29 @@ export interface Target {
   /** false = archived. */
   active: boolean;
   /** When the target was created (an instant, ISO 8601). Null for sample data. Used for the "new" glow. */
+  createdAt: string | null;
+  /** The routine this habit belongs to. Its days, start, and protected flag then come from the routine. */
+  routineId: string | null;
+  /** Position inside the routine, from 0. */
+  routineOrder: number;
+}
+
+/**
+ * A routine: habits that run together, like a superset (Sleep routine = brush teeth, retinol, read).
+ * It owns the schedule; saving it copies days, start, and protected onto each of its habits, so every
+ * habit keeps its own blocks, streak, and hit rate.
+ */
+export interface Routine {
+  id: string;
+  categoryId: string | null;
+  name: string;
+  icon: string | null;
+  frequencyPerWeek: number;
+  preferredDays: Weekday[];
+  preferredStart: Minutes;
+  protected: boolean;
+  /** false = archived (its habits are archived with it). */
+  active: boolean;
   createdAt: string | null;
 }
 

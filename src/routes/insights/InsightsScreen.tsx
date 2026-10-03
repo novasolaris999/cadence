@@ -137,7 +137,7 @@ export function InsightsScreen() {
           />
           {struggleList.length === 0 ? (
             <Card>
-              <p className="text-body-md text-muted">Every target is at {Math.round(STRUGGLE_RATE * 100)}% or better. Nothing to flag.</p>
+              <p className="text-body-md text-muted">Every habit is at {Math.round(STRUGGLE_RATE * 100)}% or better. Nothing to flag.</p>
             </Card>
           ) : (
             struggleList.map((s) => {
@@ -185,7 +185,7 @@ export function InsightsScreen() {
           <SectionHeader icon="workspace_premium" iconClass="text-hit-ink" title="Wins" />
           {winList.length === 0 ? (
             <Card>
-              <p className="text-body-md text-muted">No perfect targets yet in this range.</p>
+              <p className="text-body-md text-muted">No perfect habits yet in this range.</p>
             </Card>
           ) : (
             winList.map((w) => (

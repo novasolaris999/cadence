@@ -5,8 +5,9 @@ import { Icon, isIconName } from '../../components/Icon';
 import { NewBadge } from '../../components/NewBadge';
 import { isNewTarget } from '../../domain/novelty';
 import { cellsForRange, pct, rateTier, tally, targetStreak } from '../../domain/metrics';
+import { habitLength, isAnytime } from '../../domain/routines';
 import { targetDays } from '../../domain/schedule';
-import { formatDays, formatDuration, formatTime, isoWeekday, weekdayShort, type Period } from '../../domain/time';
+import { formatDays, formatTime, isoWeekday, weekdayShort, type Period } from '../../domain/time';
 import type { Block, Category, ISODate, Target } from '../../domain/types';
 import { HitGrid } from './HitGrid';
 
@@ -53,7 +54,7 @@ export function GoalCard({ target, category, periodBlocks, historyBlocks, period
               {isNew && <NewBadge />}
             </h3>
             <p className="truncate text-label-sm text-faint">
-              {formatDays(days, target.frequencyPerWeek)} · {formatDuration(target.durationMin)}
+              {formatDays(days, target.frequencyPerWeek)} · {habitLength(target.durationMin)}
               {category ? ` · ${category.name}` : ''}
             </p>
           </div>
@@ -90,7 +91,7 @@ export function GoalCard({ target, category, periodBlocks, historyBlocks, period
           {!target.active
             ? 'Archived'
             : next
-              ? `Next: ${next.date === today ? 'Today' : weekdayShort(isoWeekday(next.date))} ${formatTime(next.start)}`
+              ? `Next: ${next.date === today ? 'Today' : weekdayShort(isoWeekday(next.date))}${isAnytime(target) ? '' : ` ${formatTime(next.start)}`}`
               : ''}
         </span>
       </div>

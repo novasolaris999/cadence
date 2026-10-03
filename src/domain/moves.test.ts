@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { canMoveWeekly, clampStart, planDayMove, planMove, siblingsInScope } from './moves';
-import { block, target } from './test-helpers';
+import { canMoveRoutineWeekly, canMoveWeekly, clampStart, planDayMove, planGroupDayMove, planGroupMove, planMove, siblingsInScope } from './moves';
+import { block, routine, target } from './test-helpers';
 
 // Week of Mon 2026-09-28 .. Sun 2026-10-04, next week starts 2026-10-05.
 const gym = target({ id: 't1', preferredStart: 690, windowEnd: 840 }); // 11:30, window to 14:00
@@ -36,7 +36,7 @@ describe('planMove', () => {
 
   it('shifts the target and keeps day-moved blocks marked for future scope', () => {
     const plan = planMove(wed, 750, 'future', all, gym);
-    expect(plan.target).toEqual({ id: 't1', preferredStart: 750, windowEnd: 900 });
+    expect(plan.targets).toEqual([{ id: 't1', preferredStart: 750, windowEnd: 900 }]);
     expect(plan.blocks).toEqual([
       { id: 'wed', start: 750, moved: false },
       { id: 'fri', start: 750, moved: false },
@@ -104,5 +104,55 @@ describe('planDayMove', () => {
     expect(canMoveWeekly(wedGym, thu, gymMWF)).toBe(true);
     // Falls back to 'once' when weekly is not possible.
     expect(planDayMove(wedGym, '2026-10-09', 'weekly', gymMWF, [wedGym]).target).toBeUndefined();
+  });
+});
+
+describe('routine card moves', () => {
+  // Sleep routine Mon/Wed/Fri 22:00 with two habits. Week of Mon 2026-10-05.
+  const sleep = routine({ id: 'sleep', preferredDays: [1, 3, 5], frequencyPerWeek: 3, preferredStart: 1320 });
+  const teeth = target({ id: 'teeth', routineId: 'sleep', durationMin: 0, preferredDays: [1, 3, 5], frequencyPerWeek: 3, preferredStart: 1320 });
+  const read = target({ id: 'read', routineId: 'sleep', durationMin: 20, preferredDays: [1, 3, 5], frequencyPerWeek: 3, preferredStart: 1320 });
+  const wedT = block({ id: 'wt', targetId: 'teeth', date: '2026-10-07', start: 1320, durationMin: 0 });
+  const wedR = block({ id: 'wr', targetId: 'read', date: '2026-10-07', start: 1320, durationMin: 20 });
+  const friT = block({ id: 'ft', targetId: 'teeth', date: '2026-10-09', start: 1320, durationMin: 0 });
+  const friR = block({ id: 'fr', targetId: 'read', date: '2026-10-09', start: 1320, durationMin: 20 });
+  const all = [wedT, wedR, friT, friR];
+
+  it('moves every habit in the card for one day', () => {
+    expect(planGroupMove([wedT, wedR], 1290, 'day', all, [teeth, read], sleep)).toEqual({
+      blocks: [
+        { id: 'wt', start: 1290, moved: true },
+        { id: 'wr', start: 1290, moved: true },
+      ],
+    });
+  });
+
+  it('rest of week moves later cards of the routine too, once each', () => {
+    expect(planGroupMove([wedT, wedR], 1290, 'week', all, [teeth, read], sleep).blocks.map((b) => b.id)).toEqual(['wt', 'ft', 'wr', 'fr']);
+  });
+
+  it('all future moves the routine start and every habit', () => {
+    const plan = planGroupMove([wedT, wedR], 1290, 'future', all, [teeth, read], sleep);
+    expect(plan.routine).toEqual({ id: 'sleep', preferredStart: 1290 });
+    expect(plan.targets?.map((t) => [t.id, t.preferredStart])).toEqual([
+      ['teeth', 1290],
+      ['read', 1290],
+    ]);
+  });
+
+  it('moves a card to another day every week by changing the routine days', () => {
+    const plan = planGroupDayMove([wedT, wedR], '2026-10-08', 'weekly', [teeth, read], sleep, all);
+    expect(plan.routine).toEqual({ id: 'sleep', preferredDays: [1, 4, 5], frequencyPerWeek: 3 });
+    expect(plan.blocks).toEqual([
+      { id: 'wt', date: '2026-10-08', scheduledFor: '2026-10-08', moved: false },
+      { id: 'wr', date: '2026-10-08', scheduledFor: '2026-10-08', moved: false },
+    ]);
+  });
+
+  it('moves only this week when the routine already runs on the new day', () => {
+    expect(canMoveRoutineWeekly([wedT, wedR], '2026-10-09', sleep)).toBe(false);
+    const plan = planGroupDayMove([wedT, wedR], '2026-10-09', 'weekly', [teeth, read], sleep, all);
+    expect(plan.routine).toBeUndefined();
+    expect(plan.blocks.every((b) => b.moved && b.date === '2026-10-09')).toBe(true);
   });
 });

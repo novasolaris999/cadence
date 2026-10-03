@@ -2,9 +2,10 @@
 // Generated relative to the real current date, so "today", the now line, and history all look live.
 // Outcomes come from a seeded random generator, so every reload shows the same history.
 
-import type { Block, Category, DayLog, Settings, Target } from '../domain/types';
+import type { Block, Category, DayLog, Routine, Settings, Target } from '../domain/types';
 import { addDays, isoWeekday, minutesOfDay, startOfWeek, today as todayISO, dateRange } from '../domain/time';
 import { targetDays } from '../domain/schedule';
+import { isAnytime, withRoutine } from '../domain/routines';
 
 export const sampleSettings: Settings = {
   wakeAnchor: 7 * 60,
@@ -32,10 +33,66 @@ const t = (p: Partial<Target> & Pick<Target, 'id' | 'name'>): Target => ({
   protected: false,
   active: true,
   createdAt: null,
+  routineId: null,
+  routineOrder: 0,
   ...p,
 });
 
+const EVERY_DAY = [1, 2, 3, 4, 5, 6, 7] as Target['preferredDays'];
+
+export const sampleRoutines: Routine[] = [
+  {
+    id: 'r-morning',
+    categoryId: 'c-health',
+    name: 'Morning routine',
+    icon: 'wb_sunny',
+    frequencyPerWeek: 7,
+    preferredDays: EVERY_DAY,
+    preferredStart: 6 * 60 + 45,
+    protected: false,
+    active: true,
+    createdAt: null,
+  },
+  {
+    id: 'r-sleep',
+    categoryId: 'c-health',
+    name: 'Sleep routine',
+    icon: 'bedtime',
+    frequencyPerWeek: 7,
+    preferredDays: EVERY_DAY,
+    preferredStart: 22 * 60 + 15,
+    protected: false,
+    active: true,
+    createdAt: null,
+  },
+];
+
+const inRoutine = (routineId: string, habits: (Partial<Target> & Pick<Target, 'id' | 'name' | 'durationMin'>)[]) =>
+  habits.map((h, i) => withRoutine(t({ categoryId: 'c-health', ...h }), sampleRoutines.find((r) => r.id === routineId)!, i));
+
 export const sampleTargets: Target[] = [
+  ...inRoutine('r-morning', [
+    { id: 't-sun', name: 'Sunlight outside', durationMin: 10, icon: 'wb_sunny' },
+    { id: 't-tread', name: 'Treadmill', durationMin: 15, icon: 'directions_run', categoryId: 'c-fit' },
+    { id: 't-vitd', name: 'Vitamin D', durationMin: 0, icon: 'pill' },
+    { id: 't-skin', name: 'Skin care', durationMin: 5, icon: 'self_improvement' },
+  ]),
+  ...inRoutine('r-sleep', [
+    { id: 't-teeth', name: 'Brush teeth', durationMin: 0 },
+    { id: 't-retinol', name: 'Retinol', durationMin: 0 },
+    { id: 't-mag', name: 'Magnesium', durationMin: 0, icon: 'pill' },
+    { id: 't-book', name: 'Read a book', durationMin: 20, icon: 'menu_book', categoryId: 'c-mind' },
+  ]),
+  t({
+    id: 't-water',
+    name: 'Drink 2 L water',
+    icon: 'local_cafe',
+    categoryId: 'c-health',
+    durationMin: 0,
+    frequencyPerWeek: 7,
+    preferredDays: EVERY_DAY,
+    preferredStart: 0,
+  }),
   t({
     id: 't-meds',
     name: 'Morning meds & supplements',
@@ -139,6 +196,15 @@ const HIT_RATE: Record<string, number> = {
   't-date': 0.94,
   't-journal': 0.9,
   't-spanish': 0.6,
+  't-sun': 0.85,
+  't-tread': 0.7,
+  't-vitd': 0.95,
+  't-skin': 0.9,
+  't-teeth': 0.97,
+  't-retinol': 0.75,
+  't-mag': 0.85,
+  't-book': 0.55,
+  't-water': 0.8,
 };
 
 // Small deterministic PRNG (mulberry32) so sample history is stable between reloads.
@@ -170,15 +236,16 @@ export function buildSampleBlocks(now = new Date()): Block[] {
       const rand = rng(hash(date + target.id));
       let start = target.preferredStart;
       let moved = false;
-      // Occasionally a block was dragged to another time.
-      if (rand() < 0.08) {
+      // Occasionally a block was dragged to another time. A routine moves as a whole; anytime habits have no time.
+      const moveRand = target.routineId ? rng(hash(date + target.routineId))() : rand();
+      if (moveRand < 0.08 && !isAnytime(target)) {
         start += 30;
         moved = true;
       }
       const end = start + target.durationMin;
       let status: Block['status'] = 'planned';
       let completedAt: string | null = null;
-      const resolved = date < today || (date === today && end <= nowMin);
+      const resolved = date < today || (date === today && end <= nowMin && !isAnytime(target));
       if (resolved) {
         let p = HIT_RATE[target.id] ?? 0.8;
         if (target.id === 't-journal' && (w === 4 || w === 6)) p = 0.35;

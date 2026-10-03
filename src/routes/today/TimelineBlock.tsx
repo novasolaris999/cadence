@@ -4,6 +4,7 @@ import { cx } from '../../components/cx';
 import { catBg } from '../../components/categoryColor';
 import { Icon } from '../../components/Icon';
 import { NewBadge } from '../../components/NewBadge';
+import { CHECK_ROW_H, Pips, RoutineChecklist, RoutineIcon } from '../../components/RoutineParts';
 import type { BlockView } from '../../components/blockView';
 import { formatDuration, formatTimeRange } from '../../domain/time';
 import type { Minutes } from '../../domain/types';
@@ -15,6 +16,8 @@ interface Props {
   /** Planned on a past day and never done. */
   missed: boolean;
   onToggle: () => void;
+  /** Ticks one habit inside a routine card. */
+  onToggleId: (id: string) => void;
 }
 
 /**
@@ -22,7 +25,8 @@ interface Props {
  * 15 min = one line; 30-45 min = title and time; 60+ min = full card;
  * happening now = progress bar and a Complete button (today-dark.html).
  */
-export function TimelineBlock({ view, nowInBlock, missed, onToggle }: Props) {
+export function TimelineBlock({ view, nowInBlock, missed, onToggle, onToggleId }: Props) {
+  if (view.group) return <RoutineBlock view={view} nowInBlock={nowInBlock} missed={missed} onToggleId={onToggleId} />;
   const { block, category, title } = view;
   const done = block.status === 'done';
   const skipped = block.status === 'skipped';
@@ -84,7 +88,7 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle }: Props) {
           ) : (
             <span className="flex items-center gap-1 text-label-sm font-semibold uppercase tracking-wider text-muted">
               <span className={cx('h-2 w-2 rounded-full', catBg(category))} />
-              {view.protected ? 'Protected' : (category?.name ?? (view.target ? 'Routine' : 'One-off'))}
+              {view.protected ? 'Protected' : (category?.name ?? (view.target ? 'Habit' : 'One-off'))}
               {view.protected && <Icon name="lock" size={12} />}
               {view.isNew && <NewBadge />}
             </span>
@@ -147,5 +151,50 @@ function Card({ isNow, isNew, className, children }: { isNow: boolean; isNew: bo
     >
       {children}
     </div>
+  );
+}
+
+/**
+ * Pixels a routine card needs: wrapper padding, card padding, the header, and one row per habit.
+ * The timeline stretches the card's rows to at least this, so nothing is ever clipped.
+ */
+export const routineCardPx = (habits: number) => 4 + 12 + 26 + 4 + habits * CHECK_ROW_H;
+
+/**
+ * A routine on the timeline: a superset card. Header with icon, name, and one pip per habit, then
+ * the habits as a checklist you can tick right there. Tap the header for the full view.
+ */
+function RoutineBlock({
+  view,
+  nowInBlock,
+  missed,
+  onToggleId,
+}: Pick<Props, 'view' | 'nowInBlock' | 'missed' | 'onToggleId'>) {
+  const { block, category, group } = view;
+  const { routine, members, done } = group!;
+  const isNow = nowInBlock !== null && block.status === 'planned';
+  const allDone = done === members.length;
+  return (
+    <Card isNow={isNow} isNew={view.isNew} className="relative flex-col gap-1 py-1.5 pr-2 pl-2.5 [--ring-bg:var(--c-surface-3)]">
+      {/* The left rail marks a routine: several habits in one card. */}
+      <span className={cx('absolute inset-y-1.5 left-0 w-1 rounded-r-full', catBg(category))} aria-hidden />
+      <div className="flex h-[26px] min-w-0 shrink-0 items-center gap-1.5">
+        <RoutineIcon icon={routine.icon} category={category} size={22} />
+        <span className={cx('min-w-0 flex-1 truncate text-label-lg font-semibold text-text', allDone && 'opacity-60')}>
+          {routine.name}
+          {view.protected && <Icon name="lock" size={12} className="ml-1 inline align-[-1px] text-faint" />}
+          {view.isNew && (
+            <span className="ml-1.5 inline-block align-[1px]">
+              <NewBadge />
+            </span>
+          )}
+        </span>
+        <Pips blocks={members.map((m) => m.block)} category={category} />
+        <span className={cx('font-mono text-label-sm font-semibold', allDone ? 'text-hit-ink' : 'text-muted')}>
+          {done}/{members.length}
+        </span>
+      </div>
+      <RoutineChecklist members={members} category={category} missed={missed} onToggleId={onToggleId} />
+    </Card>
   );
 }

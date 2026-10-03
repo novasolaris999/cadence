@@ -5,7 +5,7 @@
 // Screens never import either directly; they use the hooks in queries.ts.
 
 import type { MovePlan } from '../domain/moves';
-import type { Block, Category, DayLog, ISODate, Settings, Target } from '../domain/types';
+import type { Block, Category, DayLog, ISODate, Routine, Settings, Target } from '../domain/types';
 
 export interface DataApi {
   mode: 'supabase' | 'demo';
@@ -22,6 +22,10 @@ export interface DataApi {
   listTargets(): Promise<Target[]>;
   /** Insert or update by id. */
   saveTarget(t: Target): Promise<void>;
+
+  listRoutines(): Promise<Routine[]>;
+  /** Insert or update by id. Habits are saved separately (see saveRoutine in scheduling.ts). */
+  saveRoutine(r: Routine): Promise<void>;
 
   /** Blocks with from <= date <= to, ordered by date then start. */
   listBlocks(from: ISODate, to: ISODate): Promise<Block[]>;

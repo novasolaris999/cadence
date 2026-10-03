@@ -6,7 +6,7 @@
 //
 // Pure planning only: returns what to change. The data layer applies it.
 
-import type { Block, ISODate, Minutes, Target, Weekday } from './types';
+import type { Block, ISODate, Minutes, Routine, Target, Weekday } from './types';
 import { startOfWeek, addDays, isoWeekday } from './time';
 import { targetDays } from './schedule';
 
@@ -20,8 +20,10 @@ export interface BlockChange {
 
 export interface MovePlan {
   blocks: BlockChange[];
-  /** Present only for 'future': the target's new preferred time and window. */
-  target?: Pick<Target, 'id' | 'preferredStart' | 'windowEnd'>;
+  /** Present only for 'future': each moved habit's new preferred time and window. */
+  targets?: Pick<Target, 'id' | 'preferredStart' | 'windowEnd'>[];
+  /** Present only for 'future' when a whole routine moved: its new start. */
+  routine?: Pick<Routine, 'id' | 'preferredStart'>;
 }
 
 /** Keeps a block inside the day: it may not start before 00:00 or end after 24:00. */
@@ -73,12 +75,36 @@ export function planMove(
       start: clampStart(start, b.durationMin),
       moved: b.scheduledFor !== null && b.scheduledFor !== b.date,
     })),
-    target: {
-      id: target!.id,
-      preferredStart: start,
-      windowEnd: target!.windowEnd === null ? null : Math.min(24 * 60, Math.max(start, target!.windowEnd + delta)),
-    },
+    targets: [
+      {
+        id: target!.id,
+        preferredStart: start,
+        windowEnd: target!.windowEnd === null ? null : Math.min(24 * 60, Math.max(start, target!.windowEnd + delta)),
+      },
+    ],
   };
+}
+
+/**
+ * Moves a routine card: every habit block in it moves together, with the same scope rules as one
+ * block. For 'future' the routine's start moves too, so its habits generate at the new time.
+ * `all` = the routine habits' blocks from the card's date on.
+ */
+export function planGroupMove(
+  members: Block[],
+  newStart: Minutes,
+  scope: MoveScope,
+  all: Block[],
+  targets: Target[],
+  routine: Routine,
+): MovePlan {
+  const tById = new Map(targets.map((t) => [t.id, t]));
+  const plans = members.map((b) => planMove(b, newStart, scope, all, tById.get(b.targetId ?? '') ?? null));
+  const seen = new Set<string>();
+  const blocks = plans.flatMap((p) => p.blocks).filter((c) => !seen.has(c.id) && seen.add(c.id));
+  if (scope !== 'future') return { blocks };
+  const start = clampStart(newStart, 0);
+  return { blocks, targets: plans.flatMap((p) => p.targets ?? []), routine: { id: routine.id, preferredStart: start } };
 }
 
 // ----- Moving a block to another day (Weekly) -----
@@ -125,4 +151,37 @@ export function planDayMove(block: Block, toDate: ISODate, scope: DayScope, targ
       : { id: block.id, date: toDate, scheduledFor: block.scheduledFor, moved: true },
     target: { id: t.id, preferredDays: days, frequencyPerWeek: days.length },
   };
+}
+
+export interface GroupDayMovePlan {
+  blocks: DayMovePlan['block'][];
+  /** Present only for 'weekly': the routine's new days (its habits follow when it is saved). */
+  routine?: Pick<Routine, 'id' | 'preferredDays' | 'frequencyPerWeek'>;
+}
+
+/** 'weekly' for a routine card: the routine runs on the block's day and not yet on the new one. */
+export function canMoveRoutineWeekly(members: Block[], toDate: ISODate, routine: Routine): boolean {
+  const first = members[0];
+  if (!first || members.some((b) => b.status !== 'planned')) return false;
+  const days = targetDays(routine);
+  return days.includes(slotWeekday(first)) && !days.includes(isoWeekday(toDate));
+}
+
+/** Moves a routine card to another day. `weekBlocks` = the routine habits' blocks in that week. */
+export function planGroupDayMove(
+  members: Block[],
+  toDate: ISODate,
+  scope: DayScope,
+  targets: Target[],
+  routine: Routine,
+  weekBlocks: Block[],
+): GroupDayMovePlan {
+  const tById = new Map(targets.map((t) => [t.id, t]));
+  const weekly = scope === 'weekly' && canMoveRoutineWeekly(members, toDate, routine);
+  const blocks = members.map(
+    (b) => planDayMove(b, toDate, weekly ? 'weekly' : 'once', tById.get(b.targetId ?? '') ?? null, weekBlocks).block,
+  );
+  if (!weekly) return { blocks };
+  const days = [...targetDays(routine).filter((d) => d !== slotWeekday(members[0]!)), isoWeekday(toDate)].sort((a, b) => a - b);
+  return { blocks, routine: { id: routine.id, preferredDays: days, frequencyPerWeek: days.length } };
 }

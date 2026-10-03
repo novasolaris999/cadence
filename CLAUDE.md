@@ -62,7 +62,8 @@ Cadence is a personal daily routine and goal tracker for one user.
 - In app code, dates are `YYYY-MM-DD` strings and times are minutes since midnight. Never use
   `toISOString()` to produce a date (it converts to UTC and can shift the day).
 - Weeks start on Monday. Weekdays use ISO numbering: 1 = Monday ... 7 = Sunday.
-- The timeline grid is 15 minutes. Start times and durations are multiples of 15.
+- The timeline grid is 15 minutes. Start times and durations are multiples of 15. Exceptions: quick habits are
+  0 minutes, and habits inside a routine may use 5-minute steps; the routine's card is rounded up to the grid.
 
 ### Data
 - Never store percentages, streaks, or hit/miss counts. Derive them from `blocks` at read time.
@@ -95,7 +96,9 @@ AI-generated suggestions, search, multiple users.
 - [x] Phase 2: Supabase schema, auth, RLS, target create/edit/archive (built; awaiting owner's Supabase setup and review)
 - [x] Phase 2.5 (owner approved, pulled forward from 7): installable PWA, Google sign-in, production on `main`
 - [x] Phase 3: Today against the database, including generating this week's blocks from targets, daily toggle, NEW glow (approved and published to production)
-- [x] Phase 4: Weekly on real data (drag between days, Re-run with preview) (built; awaiting owner review, then publish to `main`)
+- [x] Phase 4: Weekly on real data (drag between days, Re-run with preview) (approved and published to production)
+- [x] Phase 4.5 (owner approved, before phase 5): Routines (supersets of habits), quick habits, Habit naming,
+  migration 0002 (built; awaiting owner running 0002 in Supabase and review, then publish to `main`)
 - [ ] Phase 5: Goals history views
 - [ ] Phase 6: Insights
 - [ ] Phase 7: Polish and final production check (PWA and production already live since phase 2.5)
@@ -205,6 +208,29 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   new slot and later weeks follow via `syncTarget`). "Every week" is off when the target already uses the
   new weekday. One-off and finished blocks just move. Dragging a block back to its own day and time
   clears the moved mark. Rules in `planDayMove` (`src/domain/moves.ts`).
+
+- Names (owner decision): the recurring thing is a **Habit** (code and DB keep `target`/`targets`); a group of
+  habits done together is a **Routine** (table `routines`). The Goals tab is labeled Habits (URL stays `/goals`).
+  A "Quick" habit takes no time (duration 0). One-off blocks stay "one-off".
+- Routines (`src/domain/routines.ts`, migration 0002): the routine owns days, start, protected, active; saving it
+  (`saveRoutine` in `src/data/scheduling.ts`) copies them onto each habit (`withRoutine`), then syncs each habit,
+  so every habit keeps its own blocks, streak, and rate and the scheduler/Re-run work unchanged. Habits taken out
+  of a routine are archived. Existing habits can be brought into a routine (history kept). Archiving a routine
+  archives its habits; restoring brings them back.
+- Routine cards: a routine's habit blocks that share a day and start are drawn as one card (`groupByRoutine`,
+  `useDayItems` in `src/components/blockView.ts`, a stand-in block with id `routine:...`). The card is a superset:
+  header with icon, name, one progress pip per habit, then a checklist joined by a rail; tap a habit to tick it,
+  tap the header for the full sheet (`RoutineSheet`, with Complete all). Dragging a card moves every habit
+  (`planGroupMove`, `planGroupDayMove`), with the same scope questions as single blocks.
+- Stretched timeline (owner idea): where a routine card needs more room than its minutes give, those rows grow
+  (`rowHeights`/`place` in `src/routes/today/layout.ts`); time labels stay the same. Everything else keeps 32 px
+  per 15 minutes.
+- Anytime habits: quick habits outside a routine have no time (stored start 00:00). Today lists them in an
+  "Anytime" checklist above the timeline; Weekly in an "Anytime" section. Today's slot is created all day.
+- Starter routines (Morning, Sleep, Workday start) are fixed, hand-written templates in `ROUTINE_TEMPLATES`, edited
+  before saving. Not AI suggestions.
+- Before 0002 is applied, the app still works without routines: reads fall back (missing column/table codes) and
+  saving a routine shows "Database update needed".
 
 ## Visual check workflow
 

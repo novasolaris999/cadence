@@ -141,22 +141,60 @@ export interface Placed {
   top: number;
   height: number;
   header: boolean;
+  /** Height of each 15-minute row in this piece (ROW unless stretched). */
+  rowH: number;
 }
 
-export function place(segs: Segment[]): { items: Placed[]; height: number } {
+/**
+ * A stretch of time that needs more room than its rows give, e.g. a 30-minute routine with six
+ * habits. Its rows grow (time labels stay the same) so the card fits without clipping.
+ */
+export interface Tall {
+  from: Minutes;
+  to: Minutes;
+  /** Pixels the stretch needs in total. */
+  minPx: number;
+}
+
+/** Height of the 15-minute row starting at `slot`. */
+export type RowHeight = (slot: Minutes) => number;
+
+export const uniformRows: RowHeight = () => ROW;
+
+/** Row heights that give every tall stretch its room, spread evenly over its rows. */
+export function rowHeights(talls: Tall[]): RowHeight {
+  if (talls.length === 0) return uniformRows;
+  return (slot) => {
+    let h = ROW;
+    for (const t of talls) {
+      if (slot >= t.from && slot < t.to) h = Math.max(h, Math.ceil(t.minPx / Math.max(1, (t.to - t.from) / SLOT)));
+    }
+    return h;
+  };
+}
+
+export function place(segs: Segment[], rowH: RowHeight = uniformRows): { items: Placed[]; height: number } {
   let y = 0;
   const items: Placed[] = [];
   segs.forEach((s, i) => {
     if (s.kind === 'gap') {
-      items.push({ ...s, top: y, height: GAP_H, header: false });
+      items.push({ ...s, top: y, height: GAP_H, header: false, rowH: ROW });
       y += GAP_H;
       return;
     }
     const header = i === 0 || segs[i - 1]?.kind === 'gap';
     if (header) y += HEADER_H;
-    const height = ((s.to - s.from) / SLOT) * ROW;
-    items.push({ ...s, top: y, height, header });
-    y += height;
+    // Split the run into pieces of equal row height; only the first piece carries the header.
+    let from = s.from;
+    while (from < s.to) {
+      const h = rowH(from);
+      let to = from + SLOT;
+      while (to < s.to && rowH(to) === h) to += SLOT;
+      const height = ((to - from) / SLOT) * h;
+      items.push({ kind: 'rows', from, to, top: y, height, header: header && from === s.from, rowH: h });
+      y += height;
+      from = to;
+    }
   });
   return { items, height: y };
 }
@@ -167,7 +205,7 @@ export function yOf(items: Placed[], m: Minutes): number {
   for (const it of items) {
     if (m < it.to) {
       if (m <= it.from) return it.top;
-      return it.kind === 'rows' ? it.top + (m - it.from) * PX : it.top + ((m - it.from) / (it.to - it.from)) * it.height;
+      return it.kind === 'rows' ? it.top + (m - it.from) * (it.rowH / SLOT) : it.top + ((m - it.from) / (it.to - it.from)) * it.height;
     }
   }
   const last = items[items.length - 1]!;
@@ -180,7 +218,7 @@ export function minuteAt(items: Placed[], y: number): Minutes {
   for (const it of items) {
     if (y < it.top + it.height) {
       if (y <= it.top) return it.from;
-      return it.kind === 'rows' ? it.from + (y - it.top) / PX : it.from + ((y - it.top) / it.height) * (it.to - it.from);
+      return it.kind === 'rows' ? it.from + (y - it.top) / (it.rowH / SLOT) : it.from + ((y - it.top) / it.height) * (it.to - it.from);
     }
   }
   return items[items.length - 1]!.to;

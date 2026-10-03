@@ -14,8 +14,8 @@ import type { BlockView } from '../../components/blockView';
 import { clampStart } from '../../domain/moves';
 import { formatDuration, formatTime } from '../../domain/time';
 import type { Minutes } from '../../domain/types';
-import { daySpan, HEADER_H, lanes, minuteAt, place, PX, ROW, sectionLabel, segments, SLOT, yOf, type Segment } from './layout';
-import { TimelineBlock } from './TimelineBlock';
+import { daySpan, HEADER_H, lanes, minuteAt, place, rowHeights, sectionLabel, segments, SLOT, yOf, type Segment } from './layout';
+import { routineCardPx, TimelineBlock } from './TimelineBlock';
 
 const GUTTER = 52; // px reserved for time labels
 
@@ -68,8 +68,18 @@ export function Timeline(props: Props) {
     () => (drag ? [{ kind: 'rows', from: span.from, to: span.to }] : collapsedSegs),
     [drag, collapsedSegs, span],
   );
-  const { items, height } = useMemo(() => place(segs), [segs]);
-  const collapsed = useMemo(() => place(collapsedSegs).items, [collapsedSegs]);
+  // Routine cards get the room their habits need: their rows grow, the clock labels stay the same.
+  const rowH = useMemo(
+    () =>
+      rowHeights(
+        views
+          .filter((v) => v.group)
+          .map((v) => ({ from: v.block.start, to: v.block.start + v.block.durationMin, minPx: routineCardPx(v.group!.members.length) })),
+      ),
+    [views],
+  );
+  const { items, height } = useMemo(() => place(segs, rowH), [segs, rowH]);
+  const collapsed = useMemo(() => place(collapsedSegs, rowH).items, [collapsedSegs, rowH]);
   const laneMap = useMemo(() => lanes(blocks), [blocks]);
 
   // ----- Drag and drop -----
@@ -86,7 +96,7 @@ export function Timeline(props: Props) {
   const grab = useRef({ offset: 0, clientY: 0 });
   const latest = useRef<Drag | null>(null);
 
-  const fullItems = useMemo(() => place([{ kind: 'rows', from: span.from, to: span.to }]).items, [span]);
+  const fullItems = useMemo(() => place([{ kind: 'rows', from: span.from, to: span.to }], rowH).items, [span, rowH]);
 
   // Opening (or re-collapsing) stretches above the block moves it on the page. Scroll by the
   // same amount before the browser paints, so nothing jumps under your finger.
@@ -151,6 +161,7 @@ export function Timeline(props: Props) {
     // When stretches collapse again, keep the block where it landed on screen.
     const after = place(
       segments(blocks.map((b) => (b.id === d.view.block.id ? { ...b, start } : b)), span, nowInSpan, expanded),
+      rowH,
     ).items;
     pendingScroll.current = yOf(after, start) - yOf(fullItems, start) - (d.y - yOf(fullItems, start));
     setDrag(null);
@@ -162,9 +173,9 @@ export function Timeline(props: Props) {
     props.onOpen(v);
   };
 
-  const addAt = (e: MouseEvent<HTMLDivElement>, segFrom: Minutes) => {
+  const addAt = (e: MouseEvent<HTMLDivElement>, segFrom: Minutes, rowPx: number) => {
     const y = e.clientY - e.currentTarget.getBoundingClientRect().top;
-    props.onAddAt(segFrom + Math.floor(y / ROW) * SLOT);
+    props.onAddAt(segFrom + Math.floor(y / rowPx) * SLOT);
   };
 
   const hiddenNowEarly = now !== null && !showEarly && now < base.from;
@@ -200,14 +211,19 @@ export function Timeline(props: Props) {
                 <span className="h-px flex-1 bg-border" />
               </button>
             ) : (
-              <Rows key={`rows-${it.from}`} it={it} nowInSpan={nowInSpan} onClick={(e) => addAt(e, it.from)} />
+              <Rows key={`rows-${it.from}`} it={it} nowInSpan={nowInSpan} onClick={(e) => addAt(e, it.from, it.rowH)} />
             ),
           )}
 
           {drag && landing !== null && (
             <div
               className="pointer-events-none absolute rounded-lg border-2 border-dashed border-primary/60 bg-primary/5"
-              style={{ top: yOf(items, landing), height: drag.view.block.durationMin * PX, left: GUTTER, right: 4 }}
+              style={{
+                top: yOf(items, landing),
+                height: yOf(items, landing + drag.view.block.durationMin) - yOf(items, landing),
+                left: GUTTER,
+                right: 4,
+              }}
             />
           )}
 
@@ -226,7 +242,7 @@ export function Timeline(props: Props) {
                 onOpen={() => openBlock(v)}
                 style={{
                   top: yOf(items, v.block.start),
-                  height: v.block.durationMin * PX,
+                  height: yOf(items, end) - yOf(items, v.block.start),
                   left: `calc(${GUTTER}px + (100% - ${GUTTER + 4}px) * ${lane / of})`,
                   width: `calc((100% - ${GUTTER + 4}px) / ${of})`,
                 }}
@@ -236,6 +252,7 @@ export function Timeline(props: Props) {
                   nowInBlock={nowIn}
                   missed={past && v.block.status === 'planned'}
                   onToggle={() => props.onToggle(v.block.id)}
+                  onToggleId={props.onToggle}
                 />
               </DraggableBlock>
             );
@@ -276,7 +293,7 @@ function Rows({
   nowInSpan,
   onClick,
 }: {
-  it: { from: Minutes; to: Minutes; top: number; height: number; header: boolean };
+  it: { from: Minutes; to: Minutes; top: number; height: number; header: boolean; rowH: number };
   nowInSpan: Minutes | null;
   onClick: (e: MouseEvent<HTMLDivElement>) => void;
 }) {
@@ -297,7 +314,7 @@ function Rows({
           <div
             key={m}
             className="absolute inset-x-0 grid items-center rounded-md transition-colors hover:bg-primary/5"
-            style={{ top: (m - it.from) * PX, height: ROW, gridTemplateColumns: `${GUTTER - 4}px 1fr` }}
+            style={{ top: ((m - it.from) / SLOT) * it.rowH, height: it.rowH, gridTemplateColumns: `${GUTTER - 4}px 1fr` }}
           >
             <span
               className={cx(

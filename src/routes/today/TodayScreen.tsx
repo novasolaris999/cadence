@@ -6,7 +6,8 @@ import { DayLogSheet, type DayLogTarget } from '../../components/DayLogSheet';
 import { Icon } from '../../components/Icon';
 import { MoveScopeSheet, type PendingMove } from '../../components/MoveScopeSheet';
 import { Page } from '../../components/Page';
-import { useBlockViews, type BlockView } from '../../components/blockView';
+import { useBlockViews, useDayItems, type BlockView } from '../../components/blockView';
+import { AnytimeList, RoutineSheet } from '../../components/RoutineParts';
 import { usePersistentToggle } from '../../components/usePersistentToggle';
 import { DEFAULT_SETTINGS } from '../../data/api';
 import { useBlocks, useDayLogs, useEnsureWeek, useSettings, useTargets, useToggleBlockDone, useUpdateBlock } from '../../data/queries';
@@ -37,6 +38,10 @@ export function TodayScreen() {
   const toggle = useToggleBlockDone();
   const update = useUpdateBlock();
   const views = useBlockViews(blocks);
+  // Routine habits sharing a time become one card; quick habits outside routines go to "Anytime".
+  const { items, anytime } = useDayItems(views);
+  const [routineOpen, setRoutineOpen] = useState<string | null>(null);
+  const openRoutine = items.find((v) => v.block.id === routineOpen) ?? null;
   const progress = dayProgress(blocks ?? []);
   const wakeLog = logs.find((l) => l.date === date) ?? null;
   const sleepLog = logs.find((l) => l.date === sleepDate) ?? null;
@@ -51,14 +56,17 @@ export function TodayScreen() {
   const shown = useMemo(
     () =>
       pending
-        ? views.map((v) => (v.block.id === pending.block.id ? { ...v, block: { ...v.block, start: pending.newStart } } : v))
-        : views,
-    [views, pending],
+        ? items.map((v) => (v.block.id === pending.block.id ? { ...v, block: { ...v.block, start: pending.newStart } } : v))
+        : items,
+    [items, pending],
   );
 
   /** Target blocks still planned ask how far the move reaches; anything else just moves. */
-  const requestMove = (view: Pick<BlockView, 'block' | 'target'>, newStart: Minutes) => {
-    if (view.target && view.block.status === 'planned') {
+  const requestMove = (view: Pick<BlockView, 'block' | 'target' | 'group'>, newStart: Minutes) => {
+    if (view.group) {
+      const { routine, members } = view.group;
+      setPending({ block: view.block, target: null, newStart, group: { routine, members: members.map((m) => m.block) } });
+    } else if (view.target && view.block.status === 'planned') {
       setPending({ block: view.block, target: view.target, newStart });
     } else {
       update.mutate({ id: view.block.id, patch: { start: newStart, moved: true } });
@@ -99,7 +107,9 @@ export function TodayScreen() {
         onClick={() => setLogTarget({ kind: 'wake', date, existing: wakeLog })}
       />
 
-      {blocks && blocks.length === 0 && (
+      <AnytimeList views={anytime} past={date < now.today} />
+
+      {blocks && blocks.length === anytime.length && (
         <EmptyDay hasTargets={targets.some((t) => t.active)} onAdd={() => setSheet({ kind: 'add', date, start: nextSlot() })} />
       )}
 
@@ -117,7 +127,7 @@ export function TodayScreen() {
           const block = blocks?.find((b) => b.id === id);
           if (block) toggle.mutate({ block });
         }}
-        onOpen={(view) => setSheet({ kind: 'edit', view })}
+        onOpen={(view) => (view.group ? setRoutineOpen(view.block.id) : setSheet({ kind: 'edit', view }))}
         onAddAt={(start) => setSheet({ kind: 'add', date, start })}
         onDrop={requestMove}
       />
@@ -137,6 +147,13 @@ export function TodayScreen() {
         onMove={(block: Block, newStart) => requestMove({ block, target: views.find((v) => v.block.id === block.id)?.target ?? null }, newStart)}
       />
       <MoveScopeSheet pending={pending} onDone={() => setPending(null)} />
+      <RoutineSheet
+        card={openRoutine?.group ?? null}
+        category={openRoutine?.category ?? null}
+        date={openRoutine?.block.date ?? null}
+        today={now.today}
+        onClose={() => setRoutineOpen(null)}
+      />
       <DayLogSheet target={logTarget} onClose={() => setLogTarget(null)} />
     </Page>
   );
@@ -179,12 +196,12 @@ function EmptyDay({ hasTargets, onAdd }: { hasTargets: boolean; onAdd: () => voi
       <p className="text-body-md text-muted">
         {hasTargets
           ? 'Nothing scheduled for this day.'
-          : 'No routines yet. Add the things you want to do every week, and they will appear here.'}
+          : 'No habits yet. Add the things you want to do every week, and they will appear here.'}
       </p>
       <div className="flex gap-2">
         {!hasTargets && (
           <Link to="/goals/new" className="rounded-full bg-primary px-4 py-2 text-label-lg font-semibold text-on-primary">
-            New routine
+            New habit
           </Link>
         )}
         <button

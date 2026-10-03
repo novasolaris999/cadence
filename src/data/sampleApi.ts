@@ -36,6 +36,13 @@ export const sampleApi: DataApi = {
     else sampleStore.targets.push(t);
   },
 
+  listRoutines: async () => sampleStore.routines.map((r) => ({ ...r })),
+  saveRoutine: async (r) => {
+    const i = sampleStore.routines.findIndex((x) => x.id === r.id);
+    if (i >= 0) sampleStore.routines[i] = r;
+    else sampleStore.routines.push(r);
+  },
+
   listBlocks: async (from, to) =>
     sampleStore.blocks.filter((b) => b.date >= from && b.date <= to).map((b) => ({ ...b })).sort(byDateStart),
   listTargetBlocks: async (targetId, from) =>
@@ -55,9 +62,13 @@ export const sampleApi: DataApi = {
       const b = sampleStore.blocks.find((x) => x.id === c.id);
       if (b) Object.assign(b, { start: c.start, moved: c.moved });
     }
-    if (plan.target) {
-      const t = sampleStore.targets.find((x) => x.id === plan.target!.id);
-      if (t) Object.assign(t, plan.target);
+    for (const patch of plan.targets ?? []) {
+      const t = sampleStore.targets.find((x) => x.id === patch.id);
+      if (t) Object.assign(t, patch);
+    }
+    if (plan.routine) {
+      const r = sampleStore.routines.find((x) => x.id === plan.routine!.id);
+      if (r) Object.assign(r, plan.routine);
     }
   },
 
