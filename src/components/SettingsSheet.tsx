@@ -7,7 +7,7 @@ import { CATEGORY_COLORS, type Category, type ThemePref } from '../domain/types'
 import { useTheme } from '../theme/ThemeProvider';
 import { catBg } from './categoryColor';
 import { cx } from './cx';
-import { TimeInput } from './form';
+import { Chip, TimeInput } from './form';
 import { Icon } from './Icon';
 import { SegmentedControl } from './SegmentedControl';
 import { Sheet } from './Sheet';
@@ -50,8 +50,19 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
               <TimeInput label="Sleep anchor" value={settings.sleepAnchor} onChange={(m) => update.mutate({ sleepAnchor: m })} />
             </label>
           </div>
+          <div className="flex flex-col gap-1.5">
+            <span className="text-label-sm uppercase text-faint">On time means within</span>
+            <div className="flex flex-wrap gap-1.5">
+              {[15, 30, 45, 60].map((m) => (
+                <Chip key={m} active={settings.onTimeToleranceMin === m} onClick={() => update.mutate({ onTimeToleranceMin: m })}>
+                  {m} min
+                </Chip>
+              ))}
+            </div>
+          </div>
           <p className="text-body-sm text-muted">
-            The day view runs from wake to sleep. On time means within {settings.onTimeToleranceMin} minutes of the anchor.
+            The day view runs from wake to sleep. Insights counts a wake or bedtime as on time within{' '}
+            {settings.onTimeToleranceMin} minutes of its anchor.
           </p>
         </Section>
       )}

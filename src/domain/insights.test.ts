@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { categoryBalance, lateNights, missClusterDays, normalizeSleep, onTimeStats, struggles, wins } from './insights';
+import { categoryBalance, lateNights, missClusterDays, missPattern, normalizeSleep, onTimeStats, rollingWindow, struggles, wins } from './insights';
 import type { Settings } from './types';
 import { addDays } from './time';
 import { block, target } from './test-helpers';
@@ -73,5 +73,41 @@ describe('wins and struggles', () => {
       'Journal',
     ]);
     expect(wins([journal, gym, reading], blocks, blocks, TODAY).map((w) => w.target.name)).toEqual(['Gym']);
+  });
+});
+
+describe('rollingWindow', () => {
+  it('ends today and pairs with the same length just before', () => {
+    expect(rollingWindow('2026-10-05', 7)).toEqual({ from: '2026-09-29', to: '2026-10-05', prevFrom: '2026-09-22', prevTo: '2026-09-28' });
+  });
+});
+
+describe('categoryBalance by count', () => {
+  it('counts each completed habit once, so quick habits (0 min) show up', () => {
+    const health = { id: 'h', name: 'Health', color: 'cat-3' as const, sortOrder: 0 };
+    const fit = { id: 'f', name: 'Fitness', color: 'cat-1' as const, sortOrder: 1 };
+    const vitD = target({ id: 'v', categoryId: 'h', durationMin: 0 });
+    const gym = target({ id: 'g', categoryId: 'f', durationMin: 60 });
+    const blocks = [
+      block({ date: '2026-10-01', targetId: 'v', durationMin: 0, status: 'done' }),
+      block({ date: '2026-10-02', targetId: 'v', durationMin: 0, status: 'done' }),
+      block({ date: '2026-10-02', targetId: 'g', durationMin: 60, status: 'done' }),
+    ];
+    const byTime = categoryBalance(blocks, [vitD, gym], [health, fit]);
+    expect(byTime.slices.map((s) => s.category?.name)).toEqual(['Fitness']); // zero-minute slices are left out
+    const byCount = categoryBalance(blocks, [vitD, gym], [health, fit], 'count');
+    expect(byCount.slices.map((s) => [s.category?.name, s.minutes])).toEqual([
+      ['Health', 2],
+      ['Fitness', 1],
+    ]);
+    expect(byCount.totalMinutes).toBe(3);
+  });
+});
+
+describe('missPattern', () => {
+  it('reads cluster days as spread out, a few days, or most days', () => {
+    expect(missPattern([])).toBe('spread');
+    expect(missPattern([4, 6])).toBe('days');
+    expect(missPattern([1, 2, 3, 5])).toBe('most');
   });
 });

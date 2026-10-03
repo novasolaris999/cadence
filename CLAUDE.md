@@ -103,7 +103,7 @@ AI-generated suggestions, search, multiple users.
 - [x] Phase 4.5 (owner approved, before phase 5): Routines (supersets of habits), quick habits, Habit naming,
   migration 0002 (0002 applied by owner; approved and published to production)
 - [x] Phase 5: Goals history views: habit and routine history, routine grids on the Habits tab, paged reads (approved and published to production)
-- [ ] Phase 6: Insights
+- [x] Phase 6: Insights on real data: rolling windows, Routines section, Time/Done balance, honest empty states, editable on-time window (built; awaiting owner review, then publish to `main`)
 - [ ] Phase 7: Polish and final production check (PWA and production already live since phase 2.5)
 
 ## Decisions log
@@ -249,6 +249,15 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
 - Supabase returns at most 1000 rows per request: `listBlocks` and `listTargetBlocks` page through with
   `.range()` and a stable order (`readAll` in `supabaseApi.ts`). History pages read a habit's whole history.
 - On existing habits and routines, the floating Save button appears only after an edit, so it never covers history.
+
+- Insights (phase 6): windows are rolling, "Last 7 days" / "Last 30 days", each compared with the same length
+  just before (`rollingWindow`), so a Monday is never empty. The regularity chart is always the last 7 days,
+  today on the right. A Routines section shows all-done days per routine with a strip of days. Wins and
+  struggles open the habit's page and name its routine. A struggle whose misses cluster on 4+ weekdays reads
+  "Missed on most days" (`missPattern`), not a weekday list. Category balance has Time (minutes) and Done
+  (count of completed habits, so quick habits show). Empty states say what to do, and Struggles says "Not enough
+  results yet" until some habit has 2 finished days, never a false all-clear. Settings falls back to defaults.
+- On-time window is editable in Settings (15 / 30 / 45 / 60 min; stored in `settings.on_time_tolerance_min`).
 
 ## Visual check workflow
 

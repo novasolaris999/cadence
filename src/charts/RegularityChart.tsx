@@ -3,7 +3,7 @@ import { normalizeSleep } from '../domain/insights';
 import { formatTime, isoWeekday, weekdayInitial } from '../domain/time';
 
 interface Props {
-  dates: ISODate[]; // 7 dates, Monday first
+  dates: ISODate[]; // 7 dates, oldest first (the last 7 days)
   logs: DayLog[];
   settings: Settings;
   today: ISODate;
@@ -47,7 +47,7 @@ export function RegularityChart({ dates, logs, settings, today }: Props) {
   );
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="h-40 w-full" role="img" aria-label="Wake and bedtimes this week compared with your anchors">
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-40 w-full" role="img" aria-label="Wake and bedtimes over the last 7 days compared with your anchors">
       {corridor(yWake, wakeA, 'var(--c-hit)', formatTime(wakeA))}
       {corridor(ySleep, sleepA, 'var(--c-primary)', formatTime(sleepA))}
 

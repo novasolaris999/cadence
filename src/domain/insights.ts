@@ -51,6 +51,17 @@ export function lateNights(logs: DayLog[], settings: Settings): ISODate[] {
   return logs.filter((l) => l.sleep !== null && normalizeSleep(l.sleep) > limit).map((l) => l.date);
 }
 
+// ---------- Windows ----------
+
+/**
+ * Rolling window of `days` days ending today, and the same length just before it (for "vs before").
+ * Rolling, not calendar weeks, so Monday mornings are never empty.
+ */
+export function rollingWindow(today: ISODate, days: number): { from: ISODate; to: ISODate; prevFrom: ISODate; prevTo: ISODate } {
+  const from = addDays(today, -(days - 1));
+  return { from, to: today, prevFrom: addDays(from, -days), prevTo: addDays(from, -1) };
+}
+
 // ---------- Category balance ----------
 
 export interface BalanceSlice {
@@ -59,11 +70,16 @@ export interface BalanceSlice {
   share: number;
 }
 
-/** Minutes of completed blocks per category, largest first. */
+/**
+ * Completed blocks per category, largest first. `by: 'minutes'` weighs by time spent; `by: 'count'` counts
+ * each completed habit once, so quick habits (0 minutes) show up too. `minutes` and `totalMinutes` hold
+ * whichever measure was asked for.
+ */
 export function categoryBalance(
   blocks: Block[],
   targets: Target[],
   categories: Category[],
+  by: 'minutes' | 'count' = 'minutes',
 ): { slices: BalanceSlice[]; totalMinutes: number } {
   const targetById = new Map(targets.map((t) => [t.id, t]));
   const catById = new Map(categories.map((c) => [c.id, c]));
@@ -71,10 +87,11 @@ export function categoryBalance(
   for (const b of blocks) {
     if (b.status !== 'done') continue;
     const catId = effectiveCategoryId(b, targetById);
-    minutes.set(catId, (minutes.get(catId) ?? 0) + b.durationMin);
+    minutes.set(catId, (minutes.get(catId) ?? 0) + (by === 'count' ? 1 : b.durationMin));
   }
   const totalMinutes = [...minutes.values()].reduce((a, b) => a + b, 0);
   const slices = [...minutes.entries()]
+    .filter(([, m]) => m > 0)
     .map(([id, m]) => ({
       category: id ? (catById.get(id) ?? null) : null,
       minutes: m,
@@ -181,4 +198,13 @@ export function missClusterDays(blocks: Block[], today: ISODate): Weekday[] {
     if (m >= 2 && m / (total.get(w) ?? 1) >= 0.5) days.push(w);
   }
   return days.sort((a, b) => a - b);
+}
+
+/**
+ * How to read a struggle's cluster days: none (misses spread out), a few days (move or drop those
+ * days), or most days (4+ weekdays: the habit itself needs a change, not the schedule).
+ */
+export function missPattern(clusterDays: Weekday[]): 'spread' | 'days' | 'most' {
+  if (clusterDays.length === 0) return 'spread';
+  return clusterDays.length >= 4 ? 'most' : 'days';
 }
