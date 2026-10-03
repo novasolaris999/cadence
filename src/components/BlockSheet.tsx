@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { newId } from '../data/api';
-import { statusPatch, useCategories, useCreateBlock, useDeleteBlock, useUpdateBlock } from '../data/queries';
+import { statusPatch, useCategories, useCreateBlock, useDeleteBlock, useSaveTarget, useUpdateBlock } from '../data/queries';
 import { formatDayShort, formatDuration, isoWeekday } from '../domain/time';
-import type { Block, BlockStatus, ISODate, Minutes } from '../domain/types';
+import type { Block, BlockStatus, ISODate, Minutes, Weekday } from '../domain/types';
 import type { BlockView } from './blockView';
 import { catBg } from './categoryColor';
 import { cx } from './cx';
@@ -11,6 +11,7 @@ import { Chip, DURATIONS, Field, TimeInput } from './form';
 import { Icon } from './Icon';
 import { SegmentedControl } from './SegmentedControl';
 import { Sheet } from './Sheet';
+import { Toggle } from './Toggle';
 
 export type BlockSheetMode =
   | { kind: 'add'; date: ISODate; start: Minutes }
@@ -42,7 +43,10 @@ function AddForm({ date, start: initialStart, onClose }: { date: ISODate; start:
   const navigate = useNavigate();
   const { data: categories = [] } = useCategories();
   const create = useCreateBlock();
+  const saveTarget = useSaveTarget();
   const [repeat, setRepeat] = useState<'once' | 'weekly'>('once');
+  // "Make it daily": turns this into a routine on all seven days, created right here.
+  const [daily, setDaily] = useState(false);
   const [title, setTitle] = useState('');
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [start, setStart] = useState(initialStart);
@@ -56,6 +60,27 @@ function AddForm({ date, start: initialStart, onClose }: { date: ISODate; start:
       if (categoryId) p.set('category', categoryId);
       onClose();
       navigate(`/goals/new?${p}`);
+      return;
+    }
+    if (daily) {
+      saveTarget.mutate(
+        {
+          id: newId(),
+          categoryId,
+          name: title.trim(),
+          description: note.trim() || null,
+          icon: null,
+          durationMin: duration,
+          frequencyPerWeek: 7,
+          preferredDays: [1, 2, 3, 4, 5, 6, 7] as Weekday[],
+          preferredStart: start,
+          windowEnd: null,
+          protected: false,
+          active: true,
+          createdAt: new Date().toISOString(), // an instant; the database sets its own
+        },
+        { onSuccess: onClose },
+      );
       return;
     }
     create.mutate(
@@ -122,6 +147,19 @@ function AddForm({ date, start: initialStart, onClose }: { date: ISODate; start:
             ))}
           </div>
         </Field>
+        {repeat === 'once' && (
+          <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-2 px-3 py-2.5">
+            <span className="flex min-w-0 flex-col">
+              <span className="flex items-center gap-1.5 text-label-lg font-semibold">
+                <Icon name="repeat" size={16} className="text-primary" /> Make it daily
+              </span>
+              <span className="text-body-sm text-muted">
+                {daily ? 'Becomes a routine on every day at this time.' : 'Only on this day.'}
+              </span>
+            </span>
+            <Toggle label="Make it daily" checked={daily} onChange={setDaily} />
+          </div>
+        )}
         {repeat === 'once' ? (
           <input
             value={note}
@@ -142,7 +180,7 @@ function AddForm({ date, start: initialStart, onClose }: { date: ISODate; start:
           onClick={save}
           className="w-full rounded-full bg-primary py-3 text-label-lg font-semibold text-on-primary shadow-card active:scale-[0.98] disabled:opacity-40"
         >
-          {repeat === 'once' ? 'Add block' : 'Continue to target setup'}
+          {repeat === 'weekly' ? 'Continue to target setup' : daily ? 'Add daily routine' : 'Add block'}
         </button>
       </div>
     </Sheet>

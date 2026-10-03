@@ -137,6 +137,14 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   - Saving a target runs `syncTarget` across this and already-planned weeks: it removes upcoming,
     unmoved, still-planned generated blocks that no longer match the rules and fills what is missing.
     Moved, done, and skipped blocks are kept. A rename changes nothing.
+- Saving a target also ensures this week and next week exist (`afterTargetSaved`), so a routine created
+  late in the week still shows up next week. A new routine gets a confirmation toast with its first
+  block ("Gym added: first block Mon, Oct 5 at 18:00").
+- "New" highlight: targets created today or yesterday (local date of `created_at`) glow (`glow-new`
+  utility, pulse disabled for reduced motion) and carry a NEW tag on Goals cards, Today blocks, and
+  Weekly cards. Rule in `src/domain/novelty.ts`.
+- Make it daily: the add sheet's "Just this day" tab has a "Make it daily" switch that creates a 7-day
+  routine directly; the routine form has an "Every day" button that selects all seven days.
 - Wake/sleep chips: "Woke" logs today's wake time. Before 12:00 the sleep chip reads "Slept last night"
   and logs against yesterday's date (the night it started).
 - Failed saves show a short notice (`src/components/Toaster.tsx`, via the QueryClient mutation cache);

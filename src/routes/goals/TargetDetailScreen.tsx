@@ -33,6 +33,7 @@ const blank = (): Target => ({
   windowEnd: null,
   protected: false,
   active: true,
+  createdAt: new Date().toISOString(), // an instant, not a schedule date; the database sets its own
 });
 
 /**
@@ -181,6 +182,25 @@ export function TargetDetailScreen() {
             </div>
           </Field>
           <Field label="Days" hint={formatDays(days, draft.frequencyPerWeek)}>
+            <button
+              type="button"
+              aria-pressed={draft.preferredDays.length === 7}
+              onClick={() =>
+                setDraft({
+                  ...draft,
+                  preferredDays: draft.preferredDays.length === 7 ? [] : [1, 2, 3, 4, 5, 6, 7],
+                  frequencyPerWeek: draft.preferredDays.length === 7 ? draft.frequencyPerWeek : 7,
+                })
+              }
+              className={cx(
+                'flex items-center justify-center gap-1.5 self-start rounded-full border px-3 py-1 text-label-md font-semibold',
+                draft.preferredDays.length === 7
+                  ? 'border-primary bg-primary text-on-primary'
+                  : 'border-border bg-surface-2 text-muted hover:text-text',
+              )}
+            >
+              <Icon name="repeat" size={16} /> Every day
+            </button>
             <div className="grid grid-cols-7 gap-1.5">
               {WEEKDAYS.map((w) => (
                 <button

@@ -125,3 +125,23 @@
     display: none;
   }
 }
+
+/* "New" highlight for recently created routines: a soft pulsing outline in the primary color. */
+@utility glow-new {
+  box-shadow:
+    0 0 0 2px var(--c-primary),
+    0 0 16px color-mix(in oklab, var(--c-primary) 45%, transparent);
+  animation: glow-new-pulse 2.4s ease-in-out infinite;
+}
+@keyframes glow-new-pulse {
+  50% {
+    box-shadow:
+      0 0 0 2px var(--c-primary),
+      0 0 4px color-mix(in oklab, var(--c-primary) 20%, transparent);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glow-new {
+    animation: none;
+  }
+}

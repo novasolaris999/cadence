@@ -92,7 +92,7 @@ export function supabaseApi(db: SupabaseClient): DataApi {
       const rows = read(
         await db
           .from('targets')
-          .select('id, category_id, name, description, icon, duration_min, frequency_per_week, preferred_days, preferred_start, window_end, protected, active')
+          .select('id, category_id, name, description, icon, duration_min, frequency_per_week, preferred_days, preferred_start, window_end, protected, active, created_at')
           .order('preferred_start')
           .returns<TargetRow[]>(),
       );

@@ -29,6 +29,8 @@ export interface TargetRow {
   window_end: string | null;
   protected: boolean;
   active: boolean;
+  /** Read only: set by the database on insert. */
+  created_at?: string;
 }
 export interface BlockRow {
   id: string;
@@ -98,6 +100,7 @@ export const targetFromRow = (r: TargetRow): Target => ({
   windowEnd: r.window_end === null ? null : parseTime(r.window_end),
   protected: r.protected,
   active: r.active,
+  createdAt: r.created_at ?? null,
 });
 
 export function targetToRow(t: Target): TargetRow {

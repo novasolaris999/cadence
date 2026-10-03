@@ -31,6 +31,7 @@ const t = (p: Partial<Target> & Pick<Target, 'id' | 'name'>): Target => ({
   windowEnd: null,
   protected: false,
   active: true,
+  createdAt: null,
   ...p,
 });
 

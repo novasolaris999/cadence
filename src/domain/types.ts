@@ -51,6 +51,8 @@ export interface Target {
   protected: boolean;
   /** false = archived. */
   active: boolean;
+  /** When the target was created (an instant, ISO 8601). Null for sample data. Used for the "new" glow. */
+  createdAt: string | null;
 }
 
 /** One scheduled instance on one date. */

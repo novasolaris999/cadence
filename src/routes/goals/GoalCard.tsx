@@ -2,6 +2,8 @@ import { Link } from 'react-router';
 import { cx } from '../../components/cx';
 import { catSoft } from '../../components/categoryColor';
 import { Icon, isIconName } from '../../components/Icon';
+import { NewBadge } from '../../components/NewBadge';
+import { isNewTarget } from '../../domain/novelty';
 import { cellsForRange, pct, rateTier, tally, targetStreak } from '../../domain/metrics';
 import { targetDays } from '../../domain/schedule';
 import { formatDays, formatDuration, formatTime, isoWeekday, weekdayShort, type Period } from '../../domain/time';
@@ -30,12 +32,14 @@ export function GoalCard({ target, category, periodBlocks, historyBlocks, period
   const streak = targetStreak(historyBlocks, today);
   const days = targetDays(target);
   const next = historyBlocks.find((b) => b.status === 'planned' && b.date >= today);
+  const isNew = target.active && isNewTarget(target.createdAt, today);
   return (
     <Link
       to={`/goals/${target.id}`}
       className={cx(
         'flex flex-col gap-3 rounded-xl border border-border bg-surface p-3.5 shadow-card transition-colors hover:border-faint',
         !target.active && 'opacity-70',
+        isNew && 'glow-new',
       )}
     >
       <div className="flex items-start justify-between gap-2">
@@ -44,7 +48,10 @@ export function GoalCard({ target, category, periodBlocks, historyBlocks, period
             <Icon name={isIconName(target.icon) ? target.icon : 'check_circle'} size={18} />
           </div>
           <div className="min-w-0">
-            <h3 className="truncate text-headline-sm font-semibold">{target.name}</h3>
+            <h3 className="flex items-center gap-1.5 text-headline-sm font-semibold">
+              <span className="truncate">{target.name}</span>
+              {isNew && <NewBadge />}
+            </h3>
             <p className="truncate text-label-sm text-faint">
               {formatDays(days, target.frequencyPerWeek)} · {formatDuration(target.durationMin)}
               {category ? ` · ${category.name}` : ''}

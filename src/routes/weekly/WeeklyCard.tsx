@@ -2,6 +2,7 @@ import { CheckButton } from '../../components/CheckButton';
 import { cx } from '../../components/cx';
 import { catSoft } from '../../components/categoryColor';
 import { Icon } from '../../components/Icon';
+import { NewBadge } from '../../components/NewBadge';
 import type { BlockView } from '../../components/blockView';
 import { targetDays } from '../../domain/schedule';
 import { formatDays, formatTime } from '../../domain/time';
@@ -33,7 +34,10 @@ export function WeeklyCard({
       tabIndex={0}
       onClick={onOpen}
       onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen()}
-      className="relative flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-surface p-2.5 shadow-card transition-colors hover:border-faint md:block md:p-2 md:pr-7 xl:flex xl:p-2.5 xl:pr-2.5"
+      className={cx(
+        'relative flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-surface p-2.5 shadow-card transition-colors hover:border-faint md:block md:p-2 md:pr-7 xl:flex xl:p-2.5 xl:pr-2.5',
+        view.isNew && 'glow-new',
+      )}
     >
       <span className="md:absolute md:top-0.5 md:right-0.5 xl:static">
         <CheckButton status={block.status} onToggle={onToggle} title={title} size={20} />
@@ -49,6 +53,7 @@ export function WeeklyCard({
             {title}
             {view.protected && <Icon name="lock" size={12} className="ml-1 hidden align-[-1px] text-faint md:inline" />}
           </span>
+          {view.isNew && <NewBadge />}
           <span className={cx('shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase text-muted md:hidden', catSoft(category))}>
             {target ? formatDays(targetDays(target), target.frequencyPerWeek) : 'One-off'}
           </span>

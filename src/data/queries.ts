@@ -9,8 +9,9 @@ import type { MovePlan } from '../domain/moves';
 import type { Block, Category, DayLog, ISODate, Settings, Target } from '../domain/types';
 import { ensureSetup, getApi, isDemo, setDemo } from './index';
 import { localNowStamp } from './localStamp';
-import { ensureWeek, syncTarget } from './scheduling';
-import { startOfWeek, today as todayISO } from '../domain/time';
+import { afterTargetSaved, ensureWeek } from './scheduling';
+import { addDays, formatDayShort, formatTime, startOfWeek, today as todayISO } from '../domain/time';
+import { toast } from '../components/Toaster';
 
 // Every cache key starts with the data mode ('supabase' or 'demo'), so real and demo results
 // can never be mixed up in the cache, even if a request finishes just after you switch.
@@ -96,14 +97,28 @@ export function useSaveTarget() {
   return useMutation({
     mutationFn: async (t: Target) => {
       const api = getApi();
+      const created = !(qc.getQueryData<Target[]>(keys.targets()) ?? []).some((x) => x.id === t.id);
       await api.saveTarget(t);
-      await syncTarget(api, t);
+      const first = await afterTargetSaved(api, t);
+      return { created, first };
+    },
+    onSuccess: ({ created, first }, t) => {
+      if (!created) return;
+      toast(first ? `${t.name} added: first block ${whenLabel(first.date)} at ${formatTime(first.start)}` : `${t.name} added`, 'info');
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: keys.targets() });
       qc.invalidateQueries({ queryKey: keys.allBlocks() });
     },
   });
+}
+
+/** 'today', 'tomorrow', or 'Mon, Oct 5'. */
+function whenLabel(date: ISODate): string {
+  const t = todayISO();
+  if (date === t) return 'today';
+  if (date === addDays(t, 1)) return 'tomorrow';
+  return formatDayShort(date);
 }
 
 /**

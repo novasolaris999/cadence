@@ -1,9 +1,9 @@
 // Turns targets into blocks, using the pure rules in domain/schedule.ts and the DataApi for storage.
 // Works the same for Supabase and demo data.
 
-import { planFill, planTargetReplan, type PlanContext } from '../domain/schedule';
+import { isUpcoming, planFill, planTargetReplan, type PlanContext } from '../domain/schedule';
 import { addDays, minutesOfDay, startOfWeek, today } from '../domain/time';
-import type { ISODate, Target } from '../domain/types';
+import type { Block, ISODate, Target } from '../domain/types';
 import type { DataApi } from './api';
 import { newId } from './api';
 
@@ -29,6 +29,24 @@ export async function ensureWeek(api: DataApi, weekStart: ISODate, ctx = planCon
  * After a target is created, edited, archived, or restored: brings its upcoming blocks in this week and
  * every already-planned week in line with its rules. Moved, finished, and skipped blocks are kept.
  */
+/**
+ * Everything that should happen when a target is saved: make sure this week and next exist (so a new
+ * routine created late in the week still shows up next week), then line up its blocks.
+ * Returns its next upcoming block, for the confirmation message.
+ */
+export async function afterTargetSaved(api: DataApi, target: Target, ctx = planContext()): Promise<Block | null> {
+  if (target.active) {
+    const thisWeek = startOfWeek(ctx.today);
+    await ensureWeek(api, thisWeek, ctx);
+    await ensureWeek(api, addDays(thisWeek, 7), ctx);
+  }
+  await syncTarget(api, target, ctx);
+  const upcoming = (await api.listTargetBlocks(target.id, ctx.today))
+    .filter((b) => b.status === 'planned' && isUpcoming(b.date, b.start, ctx))
+    .sort((a, b) => (a.date === b.date ? a.start - b.start : a.date < b.date ? -1 : 1));
+  return upcoming[0] ?? null;
+}
+
 export async function syncTarget(api: DataApi, target: Target, ctx = planContext()): Promise<void> {
   const [weeks, blocks] = await Promise.all([
     api.listPlannedWeeks(startOfWeek(ctx.today)),

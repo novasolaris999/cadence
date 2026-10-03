@@ -34,6 +34,7 @@ export function target(p: Partial<Target> = {}): Target {
     windowEnd: null,
     protected: false,
     active: true,
+    createdAt: null,
     ...p,
   };
 }

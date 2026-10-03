@@ -3,6 +3,7 @@ import { CheckButton } from '../../components/CheckButton';
 import { cx } from '../../components/cx';
 import { catBg } from '../../components/categoryColor';
 import { Icon } from '../../components/Icon';
+import { NewBadge } from '../../components/NewBadge';
 import type { BlockView } from '../../components/blockView';
 import { formatDuration, formatTimeRange } from '../../domain/time';
 import type { Minutes } from '../../domain/types';
@@ -35,9 +36,10 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle }: Props) {
 
   if (size === 'xs') {
     return (
-      <Card isNow={isNow} className="items-center gap-2 px-2">
+      <Card isNow={isNow} isNew={view.isNew} className="items-center gap-2 px-2">
         <span className={cx('h-3.5 w-1.5 shrink-0 rounded-full', catBg(category))} />
         <span className={cx('flex-1 text-label-md', titleCls)}>{title}</span>
+        {view.isNew && <NewBadge />}
         {missed && <span className="text-label-sm font-semibold text-miss-ink">Missed</span>}
         <span className="font-mono text-label-sm text-primary-ink">{formatDuration(block.durationMin)}</span>
         <CheckButton status={block.status} onToggle={onToggle} title={title} size={18} />
@@ -47,12 +49,17 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle }: Props) {
 
   if (size === 'md') {
     return (
-      <Card isNow={isNow} className="items-center gap-2 p-2">
+      <Card isNow={isNow} isNew={view.isNew} className="items-center gap-2 p-2">
         {bar}
         <div className="flex min-w-0 flex-1 flex-col">
           <span className={cx('text-label-lg', titleCls)}>
             {title}
             {view.protected && <Icon name="lock" size={12} className="ml-1 inline align-[-1px] text-faint" />}
+            {view.isNew && (
+              <span className="ml-1.5 inline-block align-[1px]">
+                <NewBadge />
+              </span>
+            )}
           </span>
           <span className={cx('font-mono text-label-sm', done ? 'text-hit-ink' : 'text-muted')}>
             {formatTimeRange(block.start, block.durationMin)} · {formatDuration(block.durationMin)}
@@ -67,7 +74,7 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle }: Props) {
 
   const elapsed = isNow ? Math.min(block.durationMin, nowInBlock - block.start) : 0;
   return (
-    <Card isNow={isNow} className="flex-col justify-between gap-1 p-3">
+    <Card isNow={isNow} isNew={view.isNew} className="flex-col justify-between gap-1 p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col">
           {isNow ? (
@@ -79,6 +86,7 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle }: Props) {
               <span className={cx('h-2 w-2 rounded-full', catBg(category))} />
               {view.protected ? 'Protected' : (category?.name ?? (view.target ? 'Routine' : 'One-off'))}
               {view.protected && <Icon name="lock" size={12} />}
+              {view.isNew && <NewBadge />}
             </span>
           )}
           <h3 className={cx('mt-0.5 text-headline-md font-semibold', titleCls)}>{title}</h3>
@@ -127,12 +135,13 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle }: Props) {
   );
 }
 
-function Card({ isNow, className, children }: { isNow: boolean; className: string; children: ReactNode }) {
+function Card({ isNow, isNew, className, children }: { isNow: boolean; isNew: boolean; className: string; children: ReactNode }) {
   return (
     <div
       className={cx(
         'flex h-full w-full overflow-hidden rounded-lg shadow-card',
         isNow ? 'bg-surface-2 ring-2 ring-primary/50' : 'bg-surface-3/70',
+        isNew && 'glow-new',
         className,
       )}
     >
