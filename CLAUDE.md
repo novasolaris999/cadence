@@ -102,7 +102,7 @@ AI-generated suggestions, search, multiple users.
 - [x] Phase 4: Weekly on real data (drag between days, Re-run with preview) (approved and published to production)
 - [x] Phase 4.5 (owner approved, before phase 5): Routines (supersets of habits), quick habits, Habit naming,
   migration 0002 (0002 applied by owner; approved and published to production)
-- [x] Phase 5: Goals history views: habit and routine history, routine grids on the Habits tab, paged reads (built; awaiting owner review, then publish to `main`)
+- [x] Phase 5: Goals history views: habit and routine history, routine grids on the Habits tab, paged reads (approved and published to production)
 - [ ] Phase 6: Insights
 - [ ] Phase 7: Polish and final production check (PWA and production already live since phase 2.5)
 
