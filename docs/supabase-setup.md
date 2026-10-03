@@ -1,67 +1,127 @@
 # Supabase setup (one time)
 
-Everything here is clicked in the browser. The order matters: each step depends on the one before.
+Everything here is clicked in the browser. Keep two tabs open: **Supabase** (supabase.com/dashboard,
+your `cadence` project) and **Vercel** (vercel.com, your `cadence` project). The order matters: each
+part depends on the one before.
 
-## 1. Create the project
-1. Go to supabase.com, sign in (GitHub sign-in is easiest), click **New project**.
-2. Name: `cadence`. Region: **West US (North California)** (closest to San Francisco = faster app).
-3. Database password: click **Generate**, save it in your password manager. The app never uses it;
-   you only need it for direct database access later.
-4. Wait until the project finishes provisioning (about a minute).
+Menu names drift a little between dashboard versions. If a label differs, look for the closest match.
 
-## 2. Create the tables and security rules
-1. Left sidebar: **SQL Editor** > **New query**.
-2. Paste the whole of `supabase/migrations/0001_init.sql` from this repo and click **Run**.
-3. Expect "Success. No rows returned".
+---
 
-Why before connecting the app: the app's first sign-in creates your settings and categories, which
-needs the tables to exist.
+## Part 1. Create the project (done)
+Project `cadence`, region West US (North California), password saved.
 
-## 3. Allow the sign-in link to come back to the app
-**Authentication** > **URL Configuration**:
-- **Site URL**: your production URL once it exists (phase 7). For now, your latest preview URL.
-- **Redirect URLs**, add both:
-  - `https://cadence-*-novasolaris999s-projects.vercel.app/**` (every Vercel preview)
-  - `http://localhost:5173/**` (local development)
+## Part 2. Run the schema (done)
+SQL Editor > New query > paste `supabase/migrations/0001_init.sql` > Run > "Success. No rows returned".
 
-Why before signing in: Supabase only redirects to allowlisted URLs. Without this, the email link
-sends you to the Site URL instead of the preview you are testing.
+Check it worked: left sidebar **Table Editor** should list `blocks`, `categories`, `day_logs`,
+`settings`, `targets`, `week_plans`, each with a small "RLS enabled" marker (no "unrestricted" warning).
 
-## 4. Put the 6-digit code in the sign-in emails
-**Authentication** > **Email Templates**. In both **Confirm signup** (used the very first time) and
-**Magic Link** (used after that), add this line under the existing link:
+---
 
-```html
-<p>Or enter this code in the app: <strong>{{ .Token }}</strong></p>
-```
+## Part 3. Tell Supabase where the app lives (Supabase tab)
 
-Why: on iPhone, a home-screen app does not share its login with Safari, so tapping the link signs in
-Safari instead of the app. Typing the code signs in wherever you typed it.
+**Why first:** the sign-in email contains a link back to the app. Supabase refuses to send you to an
+address it does not know, as protection against someone redirecting your login to their own site.
 
-## 5. Give the app its address and browser key
-1. Supabase: **Project Settings** > **API Keys**. Copy the **Publishable key** (`sb_publishable_...`).
-   If there is none, click **Create new API keys**. Never copy a **Secret** key into the app.
-2. Supabase: **Project Settings** > **Data API** (or the project home page). Copy the **Project URL**
-   (`https://<something>.supabase.co`).
-3. Vercel: project **cadence** > **Settings** > **Environment Variables**. Add, for all environments:
-   - `VITE_SUPABASE_URL` = the Project URL
-   - `VITE_SUPABASE_PUBLISHABLE_KEY` = the publishable key
-4. Vercel: **Deployments** > newest deployment > **...** > **Redeploy**.
+1. Left sidebar: click **Authentication** (the icon of a person, or the word, depending on width).
+2. In Authentication's own menu, under **Configuration**, click **URL Configuration**.
+3. **Site URL** box: replace whatever is there (often `http://localhost:3000`) with your latest
+   Vercel preview link, for example `https://cadence-51fqv3pj2-novasolaris999s-projects.vercel.app`.
+   Click **Save**. (In phase 7 this becomes the production address.)
+4. **Redirect URLs** section: click **Add URL**, paste exactly:
+   `https://cadence-*-novasolaris999s-projects.vercel.app/**`
+   then **Save URLs**.
+   - The first `*` stands for the random part of each preview link, so every future preview works.
+   - `/**` allows any page inside the app.
+   - Do not use the broader `https://*.vercel.app/**`: that would let any Vercel site receive your login.
 
-Why redeploy: Vite writes these values into the app when it builds, so a build made before you added
-them does not have them. Until then the app shows a "Demo data" badge.
+## Part 4. Put a code in the sign-in emails (Supabase tab)
 
-## 6. Sign in, then close the door
-1. Open the new preview link, enter your email, and sign in with the link or the code.
-2. Then: **Authentication** > **Sign In / Providers** > turn off **Allow new users to sign up** > Save.
+**Why:** on iPhone, a home-screen app does not share its login with Safari, so tapping the email link
+signs in Safari, not the app. A code typed into the app signs in right where you typed it.
 
-Why last: your own account must exist before sign-ups close. After this, nobody else can create an
-account, even though the app's address and publishable key are public.
+1. Still in **Authentication**, under **Configuration**, click **Emails** (older dashboards: **Email
+   Templates**). You see a list or tabs of templates.
+2. Click **Confirm signup**. This is the email for your very first sign-in.
+3. In the **Message body** (HTML), find the line containing `{{ .ConfirmationURL }}`. Click at the end
+   of the closing `</p>` on that line, press Enter, and paste:
+
+   ```html
+   <p>Or enter this code in the app: <strong>{{ .Token }}</strong></p>
+   ```
+   Keep the curly braces exactly as written: Supabase replaces `{{ .Token }}` with the real code.
+4. Click **Save**.
+5. Click **Magic Link** (the email for every sign-in after the first) and repeat steps 3 and 4.
+
+## Part 5. Copy the two values the app needs (Supabase tab)
+
+**Why:** the app needs the project's address (URL) and a browser key to talk to it. The browser key is
+meant to be public; your data is protected by the security rules from Part 2.
+
+1. Bottom of the left sidebar: click the **gear** (**Project Settings**).
+2. Click **API Keys**.
+   - If you see a **Publishable key** starting with `sb_publishable_`, click its copy icon.
+   - If you only see "anon" and "service_role", click **Create new API keys** first, then copy the
+     publishable key.
+   - Never copy a **Secret key** (`sb_secret_...`) or **service_role** key into the app.
+   Paste it somewhere temporary (a note).
+3. Still in Project Settings, click **Data API** (or use the **Connect** button at the top of the
+   project). Copy the **Project URL**, which looks like `https://abcdefghijk.supabase.co`. Paste it
+   into the same note.
+
+## Part 6. Give the values to Vercel (Vercel tab)
+
+**Why:** Vercel builds the app. These values are written into the app during the build, so they must
+be in Vercel, and a new build is needed after adding them.
+
+1. vercel.com > click the **cadence** project.
+2. Top tabs: **Settings**. Left menu: **Environment Variables**.
+3. Add the first variable:
+   - **Key**: `VITE_SUPABASE_URL`
+   - **Value**: the Project URL from Part 5
+   - **Environments**: tick all three (Production, Preview, Development)
+   - Click **Save**.
+4. Add the second variable the same way:
+   - **Key**: `VITE_SUPABASE_PUBLISHABLE_KEY`
+   - **Value**: the publishable key from Part 5
+   - all three environments, **Save**.
+   Check the keys are spelled exactly like this, including `VITE_` at the start: the app only sees
+   variables that start with `VITE_`.
+5. Top tabs: **Deployments**. On the top row (newest), click the **⋯** menu > **Redeploy** >
+   **Redeploy** again to confirm. Leave "use existing build cache" as it is.
+6. Wait about a minute until the row says **Ready**. Click it, then **Visit** to open the new link.
+   (Each deployment gets its own link; the Redirect URL pattern from Part 3 already covers it.)
+
+Success: the app opens on a **Sign in** card, and the yellow "Demo data" badge is gone.
+
+## Part 7. Sign in (app + email)
+
+1. On the sign-in card, enter your email, tap **Email me a sign-in link**.
+2. Open the email from Supabase ("Confirm your signup" the first time). Either:
+   - tap the link: it opens the app signed in, or
+   - type the code from the email into the app and tap **Sign in with code**.
+3. You land on **Today**. Open **Goals**: you should see "No routines yet".
+
+If the link opens a page that says the link is invalid or expired, request a new email and use the
+newest one: each new email cancels the previous code.
+
+## Part 8. Close sign-ups (Supabase tab)
+
+**Why last:** your own account now exists. Turning sign-ups off means nobody else can ever create an
+account in your project, even though the app's address and browser key are public.
+
+1. **Authentication** > under **Configuration** > **Sign In / Providers**.
+2. Find **Allow new users to sign up** (in some versions it is inside the **Email** provider: click
+   **Email** to open it). Turn it **off**. Click **Save**.
+3. Check: **Authentication** > **Users** shows exactly one user, your email.
+
+---
 
 ## Good to know
 - Free projects pause after about a week without use. Daily use keeps it awake; if it pauses, open the
   Supabase dashboard and click **Restore**. No data is lost.
-- Supabase's built-in email sender allows only a few emails per hour. Fine for one person; avoid
-  requesting many sign-in emails in a row.
+- Supabase's built-in email sender allows only a few emails per hour. Avoid requesting many sign-in
+  emails in a row; if you hit the limit, wait an hour.
 - Future schema changes arrive as new files in `supabase/migrations/` (0002, 0003, ...). Run each new
   file once, in order, in the SQL Editor.
