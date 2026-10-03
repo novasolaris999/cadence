@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Outlet, useMatches } from 'react-router';
 import { AppHeader } from './components/AppHeader';
 import { TabBar } from './components/TabBar';
+import { Toaster } from './components/Toaster';
 import { useAuth } from './data/auth';
 import { useDemoMode } from './data/index';
 import { useSettings, useSetup, useUpdateSettings } from './data/queries';
@@ -36,6 +37,7 @@ export function App() {
         <Outlet />
       </main>
       <TabBar />
+      <Toaster />
     </div>
   );
 }

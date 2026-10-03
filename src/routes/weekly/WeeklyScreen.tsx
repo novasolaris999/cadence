@@ -8,7 +8,7 @@ import { MoveScopeSheet, type PendingMove } from '../../components/MoveScopeShee
 import { Page } from '../../components/Page';
 import { useBlockViews, type BlockView } from '../../components/blockView';
 import { Ring } from '../../charts/Ring';
-import { useBlocks, useCategories, useTargets, useToggleBlockDone, useUpdateBlock } from '../../data/queries';
+import { useBlocks, useCategories, useEnsureWeek, useTargets, useToggleBlockDone, useUpdateBlock } from '../../data/queries';
 import { dayProgress } from '../../domain/metrics';
 import {
   addDays,
@@ -48,6 +48,8 @@ export function WeeklyScreen() {
   useEffect(() => setSelected(thisWeek ? now.today : monday), [monday, thisWeek, now.today]);
 
   const [filter, setFilter] = useState<string>('all');
+  // First visit to this week (or a future one): create its blocks from your routines.
+  useEnsureWeek(monday);
   const { data: blocks } = useBlocks(monday, sunday);
   const { data: categories = [] } = useCategories();
   const { data: targets = [] } = useTargets();

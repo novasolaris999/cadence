@@ -13,6 +13,7 @@ import {
   categoryFromRow,
   categoryToRow,
   dayLogFromRow,
+  dayLogToRow,
   settingsFromRow,
   settingsToRow,
   targetFromRow,
@@ -145,6 +146,44 @@ export function supabaseApi(db: SupabaseClient): DataApi {
             .eq('id', id),
         );
       }
+    },
+
+    async insertBlocks(blocks) {
+      if (blocks.length === 0) return;
+      const res = await db.from('blocks').insert(blocks.map(blockToRow));
+      // 23505 = a slot already exists (two tabs filled the same week). Retry one by one, skipping those.
+      if (res.error?.code === '23505') {
+        for (const b of blocks) {
+          const one = await db.from('blocks').insert(blockToRow(b));
+          if (one.error && one.error.code !== '23505') throw new Error(one.error.message);
+        }
+        return;
+      }
+      check(res);
+    },
+    async deleteBlocks(ids) {
+      if (ids.length === 0) return;
+      check(await db.from('blocks').delete().in('id', ids));
+    },
+
+    async listPlannedWeeks(from) {
+      const rows = read(
+        await db.from('week_plans').select('week_start').gte('week_start', from).order('week_start').returns<{ week_start: string }[]>(),
+      );
+      return rows.map((r) => r.week_start);
+    },
+    async markWeekPlanned(weekStart) {
+      check(
+        await db
+          .from('week_plans')
+          .upsert({ user_id: await currentUserId(db), week_start: weekStart }, { onConflict: 'user_id,week_start', ignoreDuplicates: true }),
+      );
+    },
+
+    async saveDayLog(log) {
+      check(
+        await db.from('day_logs').upsert({ user_id: await currentUserId(db), ...dayLogToRow(log) }, { onConflict: 'user_id,date' }),
+      );
     },
 
     async listDayLogs(from, to) {

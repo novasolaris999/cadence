@@ -169,6 +169,12 @@ export function blockPatchToRow(p: Partial<Omit<Block, 'id'>>): Partial<BlockRow
   return r;
 }
 
+export const dayLogToRow = (l: DayLog): DayLogRow => ({
+  date: l.date,
+  wake_time: l.wake === null ? null : time(l.wake),
+  sleep_time: l.sleep === null ? null : time(l.sleep),
+});
+
 export const dayLogFromRow = (r: DayLogRow): DayLog => ({
   date: r.date,
   wake: r.wake_time === null ? null : parseTime(r.wake_time),

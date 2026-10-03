@@ -31,8 +31,18 @@ export interface DataApi {
   updateBlock(id: string, patch: Partial<Omit<Block, 'id'>>): Promise<void>;
   deleteBlock(id: string): Promise<void>;
   applyMove(plan: MovePlan): Promise<void>;
+  /** Inserts many blocks; a slot that already exists (another tab got there first) is skipped. */
+  insertBlocks(blocks: Block[]): Promise<void>;
+  deleteBlocks(ids: string[]): Promise<void>;
+
+  /** Mondays of weeks already filled from targets, on or after `from`. */
+  listPlannedWeeks(from: ISODate): Promise<ISODate[]>;
+  /** Records that a week has been filled, so deleted blocks do not come back on the next visit. */
+  markWeekPlanned(weekStart: ISODate): Promise<void>;
 
   listDayLogs(from: ISODate, to: ISODate): Promise<DayLog[]>;
+  /** Creates or replaces the wake/sleep row for one date. */
+  saveDayLog(log: DayLog): Promise<void>;
 }
 
 export const DEFAULT_CATEGORIES: Pick<Category, 'name' | 'color' | 'sortOrder'>[] = [
@@ -43,3 +53,11 @@ export const DEFAULT_CATEGORIES: Pick<Category, 'name' | 'color' | 'sortOrder'>[
 ];
 
 export const newId = () => crypto.randomUUID();
+
+/** The database defaults, used on screen until (or if) your saved settings load. */
+export const DEFAULT_SETTINGS: Settings = {
+  wakeAnchor: 7 * 60,
+  sleepAnchor: 23 * 60,
+  theme: 'system',
+  onTimeToleranceMin: 30,
+};

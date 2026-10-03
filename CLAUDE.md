@@ -94,7 +94,7 @@ AI-generated suggestions, search, multiple users.
 - [x] Phase 1: Scaffold, tokens, theme toggle, four-tab shell, sample data, Vercel connected (awaiting owner review of the preview)
 - [x] Phase 2: Supabase schema, auth, RLS, target create/edit/archive (built; awaiting owner's Supabase setup and review)
 - [x] Phase 2.5 (owner approved, pulled forward from 7): installable PWA, Google sign-in, production on `main`
-- [ ] Phase 3: Today against the database, including generating this week's blocks from targets
+- [x] Phase 3: Today against the database, including generating this week's blocks from targets (built; awaiting owner review, then publish to `main`)
 - [ ] Phase 4: Weekly on real data (drag between days, Re-run)
 - [ ] Phase 5: Goals history views
 - [ ] Phase 6: Insights
@@ -126,6 +126,22 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   Weekday cluster: >= 2 misses on that weekday and >= 50% of that weekday's occurrences missed,
   over the last 8 weeks.
 - Win rule: 100% with at least 2 hits in the range, or a current streak of 7+.
+- Block generation (`src/domain/schedule.ts`, orchestrated in `src/data/scheduling.ts`):
+  - `ensureWeek` runs when Today or Weekly first shows a week (current or future, never past): it creates
+    the missing upcoming slots of every active target, then marks the week in `week_plans`. Marking
+    happens after the insert, so a failed save retries next time instead of leaving an empty week; once
+    marked, deleted blocks stay deleted.
+  - Only upcoming slots are created (later day, or today at or after now): no instant misses.
+  - A slot is (target, scheduled_for). It is never created twice; the DB unique index backs this up, and
+    `insertBlocks` retries one by one on a duplicate (two tabs).
+  - Saving a target runs `syncTarget` across this and already-planned weeks: it removes upcoming,
+    unmoved, still-planned generated blocks that no longer match the rules and fills what is missing.
+    Moved, done, and skipped blocks are kept. A rename changes nothing.
+- Wake/sleep chips: "Woke" logs today's wake time. Before 12:00 the sleep chip reads "Slept last night"
+  and logs against yesterday's date (the night it started).
+- Failed saves show a short notice (`src/components/Toaster.tsx`, via the QueryClient mutation cache);
+  the optimistic change is rolled back.
+- Today falls back to default anchors (07:00 / 23:00) if settings have not loaded, so it never goes blank.
 - Publishing: the owner approved Claude pushing approved versions to `main` (production, the stable
   address the installed app uses). Work happens on the feature branch; previews remain the test track.
   `main` is updated only after the owner approves a change on its preview.

@@ -77,7 +77,7 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle }: Props) {
           ) : (
             <span className="flex items-center gap-1 text-label-sm font-semibold uppercase tracking-wider text-muted">
               <span className={cx('h-2 w-2 rounded-full', catBg(category))} />
-              {view.protected ? 'Protected' : (category?.name ?? 'One-off')}
+              {view.protected ? 'Protected' : (category?.name ?? (view.target ? 'Routine' : 'One-off'))}
               {view.protected && <Icon name="lock" size={12} />}
             </span>
           )}

@@ -1,9 +1,13 @@
 // Demo implementation: in-memory sample data. Changes last until reload.
 import type { DataApi } from './api';
 import { sampleStore } from '../sample/store';
+import { addDays, startOfWeek, today } from '../domain/time';
 
 const byDateStart = (a: { date: string; start: number }, b: { date: string; start: number }) =>
   a.date === b.date ? a.start - b.start : a.date < b.date ? -1 : 1;
+
+// The sample history already covers this week and next, so those count as planned.
+const plannedWeeks = new Set<string>([startOfWeek(today()), addDays(startOfWeek(today()), 7)]);
 
 export const sampleApi: DataApi = {
   mode: 'demo',
@@ -57,5 +61,22 @@ export const sampleApi: DataApi = {
     }
   },
 
+  insertBlocks: async (blocks) => {
+    const taken = new Set(sampleStore.blocks.map((b) => `${b.targetId}|${b.scheduledFor}`));
+    for (const b of blocks) if (!taken.has(`${b.targetId}|${b.scheduledFor}`)) sampleStore.blocks.push(b);
+  },
+  deleteBlocks: async (ids) => {
+    const drop = new Set(ids);
+    sampleStore.blocks = sampleStore.blocks.filter((b) => !drop.has(b.id));
+  },
+
+  listPlannedWeeks: async (from) => [...plannedWeeks].filter((w) => w >= from).sort(),
+  markWeekPlanned: async (weekStart) => {
+    plannedWeeks.add(weekStart);
+  },
+
   listDayLogs: async (from, to) => sampleStore.dayLogs.filter((l) => l.date >= from && l.date <= to),
+  saveDayLog: async (log) => {
+    sampleStore.dayLogs = [...sampleStore.dayLogs.filter((l) => l.date !== log.date), log];
+  },
 };

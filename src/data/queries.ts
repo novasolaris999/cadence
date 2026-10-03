@@ -9,6 +9,8 @@ import type { MovePlan } from '../domain/moves';
 import type { Block, Category, DayLog, ISODate, Settings, Target } from '../domain/types';
 import { ensureSetup, getApi, isDemo, setDemo } from './index';
 import { localNowStamp } from './localStamp';
+import { ensureWeek, syncTarget } from './scheduling';
+import { startOfWeek, today as todayISO } from '../domain/time';
 
 // Every cache key starts with the data mode ('supabase' or 'demo'), so real and demo results
 // can never be mixed up in the cache, even if a request finishes just after you switch.
@@ -85,12 +87,42 @@ export function useTargets() {
   return useQuery<Target[]>({ queryKey: keys.targets(), queryFn: () => getApi().listTargets() });
 }
 
-/** Create or update a target (create, edit, archive, restore all go through here). */
+/**
+ * Create or update a target (create, edit, archive, restore all go through here), then bring its
+ * upcoming blocks in line with the new rules.
+ */
 export function useSaveTarget() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (t: Target) => getApi().saveTarget(t),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.targets() }),
+    mutationFn: async (t: Target) => {
+      const api = getApi();
+      await api.saveTarget(t);
+      await syncTarget(api, t);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: keys.targets() });
+      qc.invalidateQueries({ queryKey: keys.allBlocks() });
+    },
+  });
+}
+
+/**
+ * Fills a week from your targets the first time it is shown (this week or later only).
+ * Runs once per week per session; the database remembers which weeks are done.
+ */
+export function useEnsureWeek(weekStart: ISODate) {
+  const qc = useQueryClient();
+  const current = startOfWeek(todayISO());
+  return useQuery({
+    queryKey: [mode(), 'ensureWeek', weekStart],
+    enabled: weekStart >= current,
+    staleTime: Infinity,
+    retry: 2,
+    queryFn: async () => {
+      const added = await ensureWeek(getApi(), weekStart);
+      if (added) await qc.invalidateQueries({ queryKey: keys.allBlocks() });
+      return true;
+    },
   });
 }
 
@@ -110,6 +142,25 @@ export function useTargetBlocks(targetId: string | null, from: ISODate) {
 
 export function useDayLogs(from: ISODate, to: ISODate) {
   return useQuery<DayLog[]>({ queryKey: keys.dayLogs(from, to), queryFn: () => getApi().listDayLogs(from, to) });
+}
+
+/** Saves wake or sleep time for one date. Shows instantly, saves in the background. */
+export function useSaveDayLog() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (log: DayLog) => getApi().saveDayLog(log),
+    onMutate: async (log) => {
+      const key = [mode(), 'dayLogs'];
+      await qc.cancelQueries({ queryKey: key });
+      const before = qc.getQueriesData<DayLog[]>({ queryKey: key });
+      qc.setQueriesData<DayLog[]>({ queryKey: key }, (list) =>
+        list ? [...list.filter((l) => l.date !== log.date), log] : list,
+      );
+      return { undo: () => before.forEach(([k, d]) => qc.setQueryData(k, d)) };
+    },
+    onError: (_e, _v, ctx) => ctx?.undo(),
+    onSettled: () => qc.invalidateQueries({ queryKey: [mode(), 'dayLogs'] }),
+  });
 }
 
 /** Applies a change to every cached block list right away; returns a function that undoes it. */
