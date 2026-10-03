@@ -96,10 +96,11 @@ be in Vercel, and a new build is needed after adding them.
    - all three environments, **Save**.
    Check the keys are spelled exactly like this, including `VITE_` at the start: the app only sees
    variables that start with `VITE_`.
-5. Top tabs: **Deployments**. On the top row (newest), click the **⋯** menu > **Redeploy** >
-   **Redeploy** again to confirm. Leave "use existing build cache" as it is.
-6. Wait about a minute until the row says **Ready**. Click it, then **Visit** to open the new link.
-   (Each deployment gets its own link; the Redirect URL pattern from Part 3 already covers it.)
+5. Tell Claude "variables added". Claude pushes a new build (variables only reach builds made after
+   they were added) and sends you the exact link to open.
+   - Do not use **Visit** on a row marked **Production** (branch `main`): production gets the app only
+     in phase 7, so it shows a "not found" page until then.
+   - Previews are behind Vercel's login. If asked, sign in to Vercel with the same GitHub account.
 
 Success: the app opens on a **Sign in** card, and the yellow "Demo data" badge is gone.
 
