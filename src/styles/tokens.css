@@ -1,0 +1,89 @@
+/*
+ * Design tokens. The ONLY place colors are defined.
+ * Each token has a light value (:root) and a dark value ([data-theme='dark']).
+ * Components use them through Tailwind classes (bg-surface, text-muted, bg-hit/15 ...),
+ * never raw hex values, so switching theme is just swapping these variables.
+ *
+ * Values reconcile the Stitch mockups: dark from today-dark / goals-dark,
+ * light from weekly-light / targets-light / insights-light.
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Neutrals: page, cards, raised fills, sunken panels */
+  --c-bg: #faf8ff;
+  --c-surface: #ffffff;
+  --c-surface-2: #f2f3ff;
+  --c-surface-3: #e4e8fb;
+  --c-sunken: #f5f6fc;
+  --c-border: #e2e6f0;
+  --c-text: #131b2e;
+  --c-text-muted: #5b6478;
+  --c-text-faint: #8a92a6;
+
+  /* Brand */
+  --c-primary: #4f46e5;
+  --c-on-primary: #ffffff;
+  --c-primary-ink: #3525cd;
+
+  /* States: fill colors for marks, ink colors for text on light backgrounds */
+  --c-hit: #10b981;
+  --c-hit-ink: #047857;
+  --c-miss: #f43f5e;
+  --c-miss-ink: #be123c;
+  --c-warn: #f59e0b;
+  --c-warn-ink: #b45309;
+  --c-now: #f43f5e;
+
+  /* Category palette. categories.color stores the key (cat-1 ... cat-8). */
+  --c-cat-1: #10b981; /* emerald */
+  --c-cat-2: #4f46e5; /* indigo */
+  --c-cat-3: #06b6d4; /* cyan */
+  --c-cat-4: #f59e0b; /* amber */
+  --c-cat-5: #f43f5e; /* rose */
+  --c-cat-6: #8b5cf6; /* violet */
+  --c-cat-7: #0ea5e9; /* sky */
+  --c-cat-8: #84cc16; /* lime */
+
+  --shadow-card: 0 1px 2px rgb(15 23 42 / 0.04), 0 2px 8px rgb(15 23 42 / 0.04);
+  --shadow-float: 0 8px 24px rgb(15 23 42 / 0.12);
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  --c-bg: #0b1326;
+  --c-surface: #131b2e;
+  --c-surface-2: #171f33;
+  --c-surface-3: #222a3d;
+  --c-sunken: #060e20;
+  --c-border: #222a3d;
+  --c-text: #dae2fd;
+  --c-text-muted: #b4bbd3;
+  --c-text-faint: #7f86a0;
+
+  --c-primary: #c0c1ff;
+  --c-on-primary: #1000a9;
+  --c-primary-ink: #c0c1ff;
+
+  --c-hit: #4edea3;
+  --c-hit-ink: #4edea3;
+  --c-miss: #ffb4ab;
+  --c-miss-ink: #ffb4ab;
+  --c-warn: #fbbf24;
+  --c-warn-ink: #fcd34d;
+  --c-now: #ff516a;
+
+  --c-cat-1: #4edea3;
+  --c-cat-2: #8083ff;
+  --c-cat-3: #22d3ee;
+  --c-cat-4: #fbbf24;
+  --c-cat-5: #fb7185;
+  --c-cat-6: #a78bfa;
+  --c-cat-7: #38bdf8;
+  --c-cat-8: #a3e635;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.2);
+  --shadow-float: 0 8px 24px rgb(0 0 0 / 0.45);
+}

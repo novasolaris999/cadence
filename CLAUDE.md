@@ -78,8 +78,8 @@ AI-generated suggestions, search, multiple users.
 
 ## Build status
 
-- [x] Phase 0: SPEC.md and CLAUDE.md committed, mockups reviewed, plan proposed (awaiting approval)
-- [ ] Phase 1: Scaffold, tokens, theme toggle, four-tab shell, sample data, Vercel connected
+- [x] Phase 0: SPEC.md and CLAUDE.md committed, mockups reviewed, plan approved
+- [x] Phase 1: Scaffold, tokens, theme toggle, four-tab shell, sample data (awaiting Vercel hookup + owner review)
 - [ ] Phase 2: Supabase schema, auth, RLS, target create/edit/archive
 - [ ] Phase 3: Today against the database
 - [ ] Phase 4: Weekly and block generation
@@ -91,4 +91,30 @@ AI-generated suggestions, search, multiple users.
 
 Record owner decisions here as they are made, so future sessions do not re-ask.
 
-- (none yet)
+- Skipped blocks count as misses in every rate; the grid draws them differently from plain misses.
+- Frequency vs days: picked days decide the frequency. With no days picked, frequency is set by hand
+  and spread with the fixed table in `src/domain/schedule.ts` (3x = Mon/Wed/Fri, 4x = Mon/Tue/Thu/Fri ...).
+- Wake and sleep are logged from two tap-to-log chips on Today (above and below the timeline).
+- On time = within `settings.on_time_tolerance_min` (default 30) of the anchor. Bedtimes before 12:00
+  belong to the previous night.
+- Goals grid: weekday columns for weekly/monthly; GitHub-style (weekday rows, week columns) for
+  quarterly/yearly. Arrows step back through past periods.
+- Protected blocks can be dragged by hand; only the scheduler (Re-run) never touches them.
+- Desktop: centered single column everywhere except Weekly, which becomes 7 columns at >= 1024px.
+- Sign-in: magic link plus a 6-digit code in the same email, because iOS home-screen apps do not
+  share storage with Safari.
+- Out-of-scope mockup content is dropped: biometric sync, notification settings, search,
+  suggested fixes / "apply slot adjustment", buffer slider, fluidity mode, volume tracking.
+- Mockup copy names ("Telemetry Engine", "Friction Detector") replaced with plain labels.
+- React 18 per SPEC. Consequence: React Router is pinned to v7 (v8 requires React 19).
+- Struggle rule: rate below 70% with at least 2 resolved occurrences, lowest first, max 3.
+  Weekday cluster: >= 2 misses on that weekday and >= 50% of that weekday's occurrences missed,
+  over the last 8 weeks.
+- Win rule: 100% with at least 2 hits in the range, or a current streak of 7+.
+
+## Visual check workflow
+
+The owner cannot preview locally. Before each push, build, run `vite preview`, and screenshot every
+changed screen in light and dark at 390px wide (and 1280px for Weekly) with the preinstalled
+Chromium (`/opt/pw-browsers`, Playwright via `/opt/node-tools/node_modules`). Use a fixed clock and
+`timezoneId` so the "now" line and today's blocks are visible.
