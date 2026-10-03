@@ -104,7 +104,7 @@ AI-generated suggestions, search, multiple users.
   migration 0002 (0002 applied by owner; approved and published to production)
 - [x] Phase 5: Goals history views: habit and routine history, routine grids on the Habits tab, paged reads (approved and published to production)
 - [x] Phase 6: Insights on real data: rolling windows, Routines section, Time/Done balance, honest empty states, editable on-time window (approved and published to production)
-- [x] Phase 7: Polish and final production check: accessibility (axe clean), security headers + CSP, offline copy and offline-safe saves, per-tab code loading (built; awaiting owner review, then publish to `main`)
+- [x] Phase 7: Polish and final production check: accessibility (axe clean), security headers + CSP, offline copy and offline-safe saves, per-tab code loading (approved and published to production)
 
 ## Decisions log
 
