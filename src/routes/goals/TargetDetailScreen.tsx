@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { cx } from '../../components/cx';
 import { catBg, catSoft } from '../../components/categoryColor';
@@ -12,7 +12,7 @@ import { pct, tally, targetStreak } from '../../domain/metrics';
 import { targetDays } from '../../domain/schedule';
 import { addDays, formatDays, formatDuration, formatTime } from '../../domain/time';
 import type { Target, Weekday } from '../../domain/types';
-import { QUICK, ROUTINE_DURATIONS, habitLength } from '../../domain/routines';
+import { QUICK, ROUTINE_DURATIONS, copyHabit, habitLength } from '../../domain/routines';
 import { useNow } from '../../theme/useNow';
 
 const blank = (): Target => ({
@@ -54,12 +54,15 @@ function fromParams(p: URLSearchParams): Target {
   };
 }
 
-/** A habit's rules: what it is, when it lands, and how the scheduler treats it (targets-light.html). */
-/** A fresh form per page, so going from one habit straight to another never shows stale edits. */
+/**
+ * A habit's rules: what it is, when it lands, and how the scheduler treats it (targets-light.html).
+ * A fresh form per page (and per copy), so going from one habit straight to another never shows stale edits.
+ * /goals/new?copy=<id> starts from a copy of another habit.
+ */
 export function TargetDetailScreen() {
   const { targetId } = useParams();
-
-  return <TargetDetailScreenForm key={targetId ?? 'new'} />;
+  const [params] = useSearchParams();
+  return <TargetDetailScreenForm key={`${targetId ?? 'new'}-${params.get('copy') ?? ''}`} />;
 }
 
 function TargetDetailScreenForm() {
@@ -72,11 +75,25 @@ function TargetDetailScreenForm() {
   const save = useSaveTarget();
   const existing = targets?.find((t) => t.id === targetId);
   const { data: routines = [] } = useRoutines();
-  const [draft, setDraft] = useState<Target | null>(() => (targetId ? null : fromParams(params)));
+  const copyOf = params.get('copy');
+  const source = copyOf ? targets?.find((t) => t.id === copyOf) : undefined;
+  const [draft, setDraft] = useState<Target | null>(() => (targetId || copyOf ? null : fromParams(params)));
+  const nameInput = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (existing && !draft) setDraft(existing);
-  }, [existing, draft]);
+    if (draft) return;
+    if (existing) setDraft(existing);
+    else if (copyOf && targets) {
+      const from = targets.find((t) => t.id === copyOf);
+      const routineOf = from?.routineId ? (routines.find((r) => r.id === from.routineId) ?? null) : null;
+      setDraft(from ? copyHabit(from, routineOf, newId(), new Date().toISOString()) : fromParams(params));
+    }
+  }, [existing, draft, copyOf, targets, routines, params]);
+
+  // A copy starts with its name selected: type the new name straight over it.
+  useEffect(() => {
+    if (copyOf && draft) nameInput.current?.select();
+  }, [copyOf, draft !== null]);
 
   const { data: history = [] } = useBlocks(addDays(now.today, -56), now.today);
 
@@ -102,12 +119,17 @@ function TargetDetailScreenForm() {
   const quick = draft.durationMin === QUICK;
   const durations = routine ? ROUTINE_DURATIONS : [QUICK, ...DURATIONS];
 
-
-
   // A quick habit outside a routine has no time: it shows under "Anytime".
-  const commit = (t: Target) =>
-    save.mutate(t.durationMin === QUICK && !t.routineId ? { ...t, preferredStart: 0, windowEnd: null } : t, {
-      onSuccess: () => navigate('/goals'),
+  const prepared = (t: Target) => (t.durationMin === QUICK && !t.routineId ? { ...t, preferredStart: 0, windowEnd: null } : t);
+  const commit = (t: Target) => save.mutate(prepared(t), { onSuccess: () => navigate('/goals') });
+  /** Saves, then starts the next habit with the same settings: only the name is cleared. */
+  const commitAndNext = () =>
+    save.mutate(prepared(draft), {
+      onSuccess: () => {
+        setDraft({ ...draft, id: newId(), name: '', description: null, createdAt: new Date().toISOString() });
+        window.scrollTo({ top: 0 });
+        nameInput.current?.focus();
+      },
     });
 
   return (
@@ -123,7 +145,22 @@ function TargetDetailScreenForm() {
             </span>
             <h1 className="truncate text-headline-lg font-bold">{existing ? draft.name || 'Untitled' : 'New habit'}</h1>
           </div>
+          {existing && (
+            <Link
+              to={`/goals/new?copy=${existing.id}`}
+              className="ml-auto flex h-9 shrink-0 items-center gap-1 rounded-full border border-border px-3 text-label-lg font-semibold text-muted hover:text-text"
+            >
+              <Icon name="content_copy" size={16} /> Duplicate
+            </Link>
+          )}
         </div>
+
+        {source && (
+          <p className="-mt-1 flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2 text-body-sm text-primary-ink">
+            <Icon name="content_copy" size={16} />
+            Copy of {source.name}. Change the name and time, then create.
+          </p>
+        )}
 
         {/* Identity */}
         <FormCard>
@@ -133,6 +170,7 @@ function TargetDetailScreenForm() {
             </div>
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <input
+                ref={nameInput}
                 value={draft.name}
                 onChange={(e) => set('name', e.target.value)}
                 placeholder="Name, e.g. Gym session or Vitamin D"
@@ -302,14 +340,26 @@ function TargetDetailScreenForm() {
       </div>
 
       <div className="pb-safe fixed inset-x-0 bottom-16 z-40 mx-auto max-w-xl px-4 pb-3">
-        <button
-          type="button"
-          disabled={!canSave}
-          onClick={() => commit(draft)}
-          className="w-full rounded-full bg-primary py-3 text-label-lg font-semibold text-on-primary shadow-float active:scale-[0.98] disabled:opacity-40"
-        >
-          {existing ? 'Save changes' : 'Create habit'}
-        </button>
+        <div className="flex gap-2">
+          {!existing && (
+            <button
+              type="button"
+              disabled={!canSave || save.isPending}
+              onClick={commitAndNext}
+              className="flex shrink-0 items-center justify-center gap-1 rounded-full border border-primary/30 bg-surface px-4 py-3 text-label-lg font-semibold text-primary-ink shadow-float active:scale-[0.98] disabled:opacity-40"
+            >
+              <Icon name="playlist_add" size={18} /> Save & add another
+            </button>
+          )}
+          <button
+            type="button"
+            disabled={!canSave || save.isPending}
+            onClick={() => commit(draft)}
+            className="w-full rounded-full bg-primary py-3 text-label-lg font-semibold text-on-primary shadow-float active:scale-[0.98] disabled:opacity-40"
+          >
+            {existing ? 'Save changes' : 'Create habit'}
+          </button>
+        </div>
       </div>
     </Page>
   );

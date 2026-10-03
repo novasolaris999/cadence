@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { cx } from '../../components/cx';
 import { catBg } from '../../components/categoryColor';
@@ -9,7 +9,7 @@ import { Toggle } from '../../components/Toggle';
 import { Chip, DaysPicker, Field, FormCard, HABIT_ICONS, SectionTitle, TimeInput } from '../../components/form';
 import { newId } from '../../data/api';
 import { useCategories, useRoutines, useSaveRoutine, useTargets } from '../../data/queries';
-import { QUICK, ROUTINE_DURATIONS, ROUTINE_TEMPLATES, habitLength, routineMinutes, routineSpan } from '../../domain/routines';
+import { QUICK, ROUTINE_DURATIONS, ROUTINE_TEMPLATES, copyRoutine, habitLength, routineMinutes, routineSpan } from '../../domain/routines';
 import { targetDays } from '../../domain/schedule';
 import { formatDays, formatDuration, formatTimeRange } from '../../domain/time';
 import type { Category, Routine, Target } from '../../domain/types';
@@ -70,7 +70,7 @@ function fresh(templateKey: string | null, categories: Category[]): Draft {
 export function RoutineScreen() {
   const { routineId } = useParams();
   const [params] = useSearchParams();
-  return <RoutineScreenForm key={routineId ?? `new-${params.get('template') ?? ''}`} />;
+  return <RoutineScreenForm key={routineId ?? `new-${params.get('template') ?? ''}-${params.get('copy') ?? ''}`} />;
 }
 
 function RoutineScreenForm() {
@@ -82,6 +82,10 @@ function RoutineScreenForm() {
   const { data: categories, isSuccess: categoriesLoaded } = useCategories();
   const save = useSaveRoutine();
   const existing = routines?.find((r) => r.id === routineId);
+  // /goals/routine/new?copy=<id> starts from a copy of another routine and all its habits.
+  const copyOf = params.get('copy');
+  const source = copyOf ? routines?.find((r) => r.id === copyOf) : undefined;
+  const nameInput = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [adding, setAdding] = useState('');
   const [openLength, setOpenLength] = useState<string | null>(null);
@@ -94,10 +98,22 @@ function RoutineScreenForm() {
         .filter((t) => t.routineId === existing.id && (t.active || !existing.active))
         .sort((a, b) => a.routineOrder - b.routineOrder);
       setDraft({ routine: existing, habits, removed: [] });
+    } else if (!routineId && copyOf) {
+      if (!routines) return;
+      const from = routines.find((r) => r.id === copyOf);
+      if (!from) return setDraft(fresh(null, categories ?? []));
+      const members = targets.filter((t) => t.routineId === from.id && (t.active || !from.active)).sort((a, b) => a.routineOrder - b.routineOrder);
+      const copy = copyRoutine(from, members, newId, new Date().toISOString());
+      setDraft({ ...copy, removed: [] });
     } else if (!routineId && categoriesLoaded) {
       setDraft(fresh(params.get('template'), categories ?? []));
     }
-  }, [existing, targets, draft, routineId, categoriesLoaded, categories, params]);
+  }, [existing, targets, draft, routineId, categoriesLoaded, categories, params, copyOf, routines]);
+
+  // A copy starts with its name selected: type the new name straight over it.
+  useEffect(() => {
+    if (copyOf && draft) nameInput.current?.select();
+  }, [copyOf, draft !== null]);
 
   if (routineId && !isLoading && !existing) {
     return (
@@ -164,13 +180,29 @@ function RoutineScreenForm() {
             </span>
             <h1 className="truncate text-headline-lg font-bold">{existing ? routine.name || 'Untitled' : 'New routine'}</h1>
           </div>
+          {existing && (
+            <Link
+              to={`/goals/routine/new?copy=${existing.id}`}
+              className="ml-auto flex h-9 shrink-0 items-center gap-1 rounded-full border border-border px-3 text-label-lg font-semibold text-muted hover:text-text"
+            >
+              <Icon name="content_copy" size={16} /> Duplicate
+            </Link>
+          )}
         </div>
+
+        {source && (
+          <p className="-mt-1 flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2 text-body-sm text-primary-ink">
+            <Icon name="content_copy" size={16} />
+            Copy of {source.name} with all {habits.length} habits. Change the name and time, then create.
+          </p>
+        )}
 
         {/* Identity */}
         <FormCard>
           <div className="flex items-center gap-3">
             <RoutineIcon icon={routine.icon} category={category} size={48} />
             <input
+              ref={nameInput}
               value={routine.name}
               onChange={(e) => setRoutine({ name: e.target.value })}
               placeholder="Name, e.g. Sleep routine"

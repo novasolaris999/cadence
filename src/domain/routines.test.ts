@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupByRoutine, isAnytime, routineMinutes, routineSpan, withRoutine } from './routines';
+import { copyHabit, copyRoutine, groupByRoutine, isAnytime, routineMinutes, routineSpan, withRoutine } from './routines';
 import { planFill } from './schedule';
 import { block, routine, target } from './test-helpers';
 
@@ -79,6 +79,43 @@ describe('anytime habits in planFill', () => {
       '2026-10-09',
       '2026-10-10',
       '2026-10-11',
+    ]);
+  });
+});
+
+describe('copying', () => {
+  const at = '2026-10-03T10:00:00Z';
+  it('copies a habit with a new id and the same settings', () => {
+    const vitD = target({ id: 'v', name: 'Vitamin D', durationMin: 0, preferredStart: 0, preferredDays: [1, 2, 3, 4, 5, 6, 7], frequencyPerWeek: 7 });
+    expect(copyHabit(vitD, null, 'new', at)).toEqual({ ...vitD, id: 'new', createdAt: at });
+  });
+
+  it('copies a habit out of a routine as its own habit, with the routine schedule, on the grid', () => {
+    const sun = target({ id: 's', routineId: 'sleep', routineOrder: 2, durationMin: 10, preferredStart: 0 });
+    const copy = copyHabit(sun, sleep, 'new', at);
+    expect(copy).toMatchObject({
+      routineId: null,
+      routineOrder: 0,
+      durationMin: 15,
+      preferredDays: [1, 2, 3, 4, 5],
+      frequencyPerWeek: 5,
+      preferredStart: 22 * 60,
+      protected: true,
+    });
+  });
+
+  it('copies an archived habit as an active one', () => {
+    expect(copyHabit(target({ active: false }), null, 'n', at).active).toBe(true);
+  });
+
+  it('copies a routine and every habit with new ids', () => {
+    let n = 0;
+    const habits = [target({ id: 'a', routineId: 'sleep' }), target({ id: 'b', routineId: 'sleep', durationMin: 0 })];
+    const copy = copyRoutine(sleep, habits, () => `id${++n}`, at);
+    expect(copy.routine).toMatchObject({ id: 'id1', name: sleep.name, preferredStart: sleep.preferredStart });
+    expect(copy.habits.map((h) => [h.id, h.durationMin, h.routineId])).toEqual([
+      ['id2', 60, null],
+      ['id3', 0, null],
     ]);
   });
 });

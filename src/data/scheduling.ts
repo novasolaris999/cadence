@@ -2,7 +2,7 @@
 // Works the same for Supabase and demo data.
 
 import type { DayMovePlan, GroupDayMovePlan } from '../domain/moves';
-import { withRoutine } from '../domain/routines';
+import { isAnytime, withRoutine } from '../domain/routines';
 import { isUpcoming, planFill, planRerun, planTargetReplan, type PlanContext, type RerunPlan } from '../domain/schedule';
 import { addDays, minutesOfDay, startOfWeek, today } from '../domain/time';
 import type { Block, ISODate, Routine, Target } from '../domain/types';
@@ -39,8 +39,10 @@ export async function afterTargetSaved(api: DataApi, target: Target, ctx = planC
     await ensureWeek(api, addDays(thisWeek, 7), ctx);
   }
   await syncTarget(api, target, ctx);
+  // An anytime habit has no time: today's tick still counts as upcoming all day.
+  const ahead = (b: Block) => (isAnytime(target) ? b.date >= ctx.today : isUpcoming(b.date, b.start, ctx));
   const upcoming = (await api.listTargetBlocks(target.id, ctx.today))
-    .filter((b) => b.status === 'planned' && isUpcoming(b.date, b.start, ctx))
+    .filter((b) => b.status === 'planned' && ahead(b))
     .sort((a, b) => (a.date === b.date ? a.start - b.start : a.date < b.date ? -1 : 1));
   return upcoming[0] ?? null;
 }

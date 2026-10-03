@@ -9,6 +9,7 @@ import type { DayMovePlan, GroupDayMovePlan, MovePlan } from '../domain/moves';
 import type { Block, Category, DayLog, ISODate, Routine, Settings, Target } from '../domain/types';
 import { ensureSetup, getApi, isDemo, setDemo } from './index';
 import { localNowStamp } from './localStamp';
+import { isAnytime } from '../domain/routines';
 import { afterTargetSaved, applyDayMove, applyGroupDayMove, ensureWeek, rerunWeek, saveRoutine } from './scheduling';
 import { addDays, formatDayShort, formatTime, startOfWeek, today as todayISO } from '../domain/time';
 import { toast } from '../components/Toaster';
@@ -105,7 +106,9 @@ export function useSaveTarget() {
     },
     onSuccess: ({ created, first }, t) => {
       if (!created) return;
-      toast(first ? `${t.name} added: first block ${whenLabel(first.date)} at ${formatTime(first.start)}` : `${t.name} added`, 'info');
+      if (!first) toast(`${t.name} added`, 'info');
+      else if (isAnytime(t)) toast(`${t.name} added to Anytime, from ${whenLabel(first.date)}`, 'info');
+      else toast(`${t.name} added: first block ${whenLabel(first.date)} at ${formatTime(first.start)}`, 'info');
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: keys.targets() });

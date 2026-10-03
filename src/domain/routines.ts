@@ -140,3 +140,44 @@ export const ROUTINE_TEMPLATES: RoutineTemplate[] = [
     ],
   },
 ];
+
+/**
+ * A copy of a habit, ready to edit before saving: a new id, everything else the same. A copy of a
+ * habit inside a routine becomes a habit on its own, with the routine's days and time (so you can give
+ * it a different time); a 5-minute-step length is rounded up to the 15-minute grid it then needs.
+ */
+export function copyHabit(habit: Target, routine: Routine | null, id: string, createdAt: string): Target {
+  const fromRoutine = habit.routineId !== null && routine !== null;
+  const durationMin = habit.durationMin === QUICK ? QUICK : Math.ceil(habit.durationMin / GRID) * GRID;
+  return {
+    ...habit,
+    id,
+    createdAt,
+    active: true,
+    routineId: null,
+    routineOrder: 0,
+    durationMin,
+    ...(fromRoutine
+      ? {
+          preferredDays: [...routine.preferredDays],
+          frequencyPerWeek: routine.frequencyPerWeek,
+          preferredStart: durationMin === QUICK ? 0 : routine.preferredStart,
+          windowEnd: null,
+          protected: routine.protected,
+        }
+      : {}),
+  };
+}
+
+/** A copy of a routine and all its habits (new ids), ready to edit before saving. */
+export function copyRoutine(
+  routine: Routine,
+  habits: Target[],
+  newId: () => string,
+  createdAt: string,
+): { routine: Routine; habits: Target[] } {
+  return {
+    routine: { ...routine, id: newId(), createdAt, active: true },
+    habits: habits.map((h) => ({ ...h, id: newId(), createdAt, active: true, routineId: null, routineOrder: 0 })),
+  };
+}

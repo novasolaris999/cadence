@@ -101,7 +101,7 @@ AI-generated suggestions, search, multiple users.
 - [x] Phase 3: Today against the database, including generating this week's blocks from targets, daily toggle, NEW glow (approved and published to production)
 - [x] Phase 4: Weekly on real data (drag between days, Re-run with preview) (approved and published to production)
 - [x] Phase 4.5 (owner approved, before phase 5): Routines (supersets of habits), quick habits, Habit naming,
-  migration 0002 (built; awaiting owner running 0002 in Supabase and review, then publish to `main`)
+  migration 0002 (0002 applied by owner; approved and published to production)
 - [ ] Phase 5: Goals history views
 - [ ] Phase 6: Insights
 - [ ] Phase 7: Polish and final production check (PWA and production already live since phase 2.5)
@@ -232,6 +232,10 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   "Anytime" checklist above the timeline; Weekly in an "Anytime" section. Today's slot is created all day.
 - Starter routines (Morning, Sleep, Workday start) are fixed, hand-written templates in `ROUTINE_TEMPLATES`, edited
   before saving. Not AI suggestions.
+- Fast adding (owner request): "Duplicate" on every habit and routine page opens a new form copied from it, name
+  pre-selected to type over (`/goals/new?copy=<id>`, `/goals/routine/new?copy=<id>`; rules `copyHabit`,
+  `copyRoutine`). A habit copied out of a routine becomes its own habit with the routine's days and time. The
+  new-habit form has "Save & add another": saves, keeps every setting, clears only the name.
 - Before 0002 is applied, the app still works without routines: reads fall back (missing column/table codes) and
   saving a routine shows "Database update needed".
 
