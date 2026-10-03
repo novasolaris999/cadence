@@ -26,7 +26,7 @@ Cadence is a personal daily routine and goal tracker for one user.
 - dnd-kit for drag and drop
 - Hand-written SVG for all charts. No chart library.
 - Vitest for unit tests of pure domain logic
-- Vercel hosting; PWA (installable) in phase 7
+- Vercel hosting (GitHub repo connected; every branch push gets a preview URL, `main` is production); PWA in phase 7
 - Fonts self-hosted: Plus Jakarta Sans (headings, metrics), Inter (body, labels)
 
 ## Secrets and environment
@@ -79,7 +79,7 @@ AI-generated suggestions, search, multiple users.
 ## Build status
 
 - [x] Phase 0: SPEC.md and CLAUDE.md committed, mockups reviewed, plan approved
-- [x] Phase 1: Scaffold, tokens, theme toggle, four-tab shell, sample data (awaiting Vercel hookup + owner review)
+- [x] Phase 1: Scaffold, tokens, theme toggle, four-tab shell, sample data, Vercel connected (awaiting owner review of the preview)
 - [ ] Phase 2: Supabase schema, auth, RLS, target create/edit/archive
 - [ ] Phase 3: Today against the database
 - [ ] Phase 4: Weekly and block generation
