@@ -3,6 +3,7 @@ import {
   addDays,
   daysBetween,
   formatDays,
+  formatPeriodShort,
   formatDuration,
   isoWeekNumber,
   isoWeekday,
@@ -63,5 +64,14 @@ describe('time', () => {
     expect(formatDays([5, 1, 3], 3)).toBe('Mon · Wed · Fri');
     expect(formatDays([1, 2, 3, 4, 5, 6, 7], 7)).toBe('Daily');
     expect(formatDays([], 3)).toBe('3x / week');
+  });
+});
+
+describe('formatPeriodShort', () => {
+  it('labels chart axes compactly', () => {
+    expect(formatPeriodShort(periodContaining('weekly', '2026-10-07'))).toBe('W41');
+    expect(formatPeriodShort(periodContaining('monthly', '2026-10-07'))).toBe('Oct');
+    expect(formatPeriodShort(periodContaining('quarterly', '2026-10-07'))).toBe('Q4');
+    expect(formatPeriodShort(periodContaining('yearly', '2026-10-07'))).toBe('2026');
   });
 });

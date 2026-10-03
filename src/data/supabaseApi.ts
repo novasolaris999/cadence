@@ -41,6 +41,23 @@ function read<T>(res: { data: T | null; error: { message: string } | null }): T 
   return res.data;
 }
 
+/**
+ * Supabase returns at most 1000 rows per request, silently. Reads that can be longer (a year of
+ * history) fetch page after page until a short page says there is no more. The query must have a
+ * stable order (id last) so pages never overlap or skip rows.
+ */
+const PAGE = 1000;
+async function readAll<T>(
+  page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const all: T[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const rows = read(await page(from, from + PAGE - 1));
+    all.push(...rows);
+    if (rows.length < PAGE) return all;
+  }
+}
+
 /** The signed-in user's id, from the locally stored session (no network call). */
 async function currentUserId(db: SupabaseClient): Promise<string> {
   const { data } = await db.auth.getSession();
@@ -143,14 +160,31 @@ export function supabaseApi(db: SupabaseClient): DataApi {
     },
 
     async listBlocks(from, to) {
-      const rows = read(
-        await db.from('blocks').select(BLOCK_COLUMNS).gte('date', from).lte('date', to).order('date').order('start_time').returns<BlockRow[]>(),
+      const rows = await readAll((lo, hi) =>
+        db
+          .from('blocks')
+          .select(BLOCK_COLUMNS)
+          .gte('date', from)
+          .lte('date', to)
+          .order('date')
+          .order('start_time')
+          .order('id')
+          .range(lo, hi)
+          .returns<BlockRow[]>(),
       );
       return rows.map(blockFromRow);
     },
     async listTargetBlocks(targetId, from) {
-      const rows = read(
-        await db.from('blocks').select(BLOCK_COLUMNS).eq('target_id', targetId).gte('date', from).order('date').returns<BlockRow[]>(),
+      const rows = await readAll((lo, hi) =>
+        db
+          .from('blocks')
+          .select(BLOCK_COLUMNS)
+          .eq('target_id', targetId)
+          .gte('date', from)
+          .order('date')
+          .order('id')
+          .range(lo, hi)
+          .returns<BlockRow[]>(),
       );
       return rows.map(blockFromRow);
     },

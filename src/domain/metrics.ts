@@ -60,6 +60,7 @@ export type CellState =
   | 'hit'
   | 'miss'
   | 'skipped'
+  | 'partial' // a routine day with some of its habits done
   | 'pending' // scheduled today, not done yet
   | 'scheduled' // scheduled on a future date
   | 'rest' // nothing scheduled, past or today

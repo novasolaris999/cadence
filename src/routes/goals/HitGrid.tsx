@@ -3,10 +3,12 @@ import type { CellState } from '../../domain/metrics';
 import { addDays, startOfWeek, weekdayInitial, type Scope } from '../../domain/time';
 import type { ISODate, Weekday } from '../../domain/types';
 
-const CELL: Record<CellState, string> = {
+/** Fill for each cell state; shared by every grid and strip. */
+export const CELL: Record<CellState, string> = {
   hit: 'bg-hit',
   miss: 'bg-miss',
   skipped: 'bg-miss/30 ring-1 ring-inset ring-miss',
+  partial: 'bg-warn',
   pending: 'bg-primary animate-pulse',
   scheduled: 'ring-1 ring-inset ring-primary/50',
   rest: 'bg-surface-3',
@@ -86,9 +88,11 @@ export function HitGrid({ cells, scope, from, to, highlightDays = [] }: Props) {
   );
 }
 
-export function GridLegend() {
+/** `partial` adds the routine state (some of a routine's habits done). */
+export function GridLegend({ partial = false }: { partial?: boolean }) {
   const items: [string, string][] = [
     ['Hit', CELL.hit],
+    ...(partial ? ([['Partial', CELL.partial]] as [string, string][]) : []),
     ['Miss', CELL.miss],
     ['Skipped', CELL.skipped],
     ['Rest', CELL.rest],

@@ -8,7 +8,10 @@ import { RoutineIcon } from '../../components/RoutineParts';
 import { Toggle } from '../../components/Toggle';
 import { Chip, DaysPicker, Field, FormCard, HABIT_ICONS, SectionTitle, TimeInput } from '../../components/form';
 import { newId } from '../../data/api';
-import { useCategories, useRoutines, useSaveRoutine, useTargets } from '../../data/queries';
+import { useCategories, useHabitsBlocks, useRoutines, useSaveRoutine, useTargets } from '../../data/queries';
+import { useNow } from '../../theme/useNow';
+import { RoutineHistory } from './RoutineHistory';
+import { HISTORY_FROM } from './TargetDetailScreen';
 import { QUICK, ROUTINE_DURATIONS, ROUTINE_TEMPLATES, copyRoutine, habitLength, routineMinutes, routineSpan } from '../../domain/routines';
 import { targetDays } from '../../domain/schedule';
 import { formatDays, formatDuration, formatTimeRange } from '../../domain/time';
@@ -86,6 +89,12 @@ function RoutineScreenForm() {
   const copyOf = params.get('copy');
   const source = copyOf ? routines?.find((r) => r.id === copyOf) : undefined;
   const nameInput = useRef<HTMLInputElement>(null);
+  const now = useNow();
+  // The saved habits of this routine (not the unsaved edits below) and their whole history.
+  const savedHabits = existing
+    ? targets.filter((t) => t.routineId === existing.id && (t.active || !existing.active)).sort((a, b) => a.routineOrder - b.routineOrder)
+    : [];
+  const history = useHabitsBlocks(savedHabits.map((h) => h.id), HISTORY_FROM);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [adding, setAdding] = useState('');
   const [openLength, setOpenLength] = useState<string | null>(null);
@@ -155,6 +164,11 @@ function RoutineScreenForm() {
   const minutes = routineMinutes(habits);
   const span = routineSpan(minutes);
   const category = categories?.find((c) => c.id === routine.categoryId) ?? null;
+  const dirty =
+    existing !== undefined &&
+    (JSON.stringify(routine) !== JSON.stringify(existing) ||
+      draft.removed.length > 0 ||
+      JSON.stringify(habits) !== JSON.stringify(savedHabits));
   const canSave = routine.name.trim().length > 0 && habits.length > 0 && habits.every((h) => h.name.trim().length > 0);
 
   const commit = (r: Routine) =>
@@ -189,6 +203,8 @@ function RoutineScreenForm() {
             </Link>
           )}
         </div>
+
+        {existing && <RoutineHistory routine={existing} habits={savedHabits} blocks={history} today={now.today} />}
 
         {source && (
           <p className="-mt-1 flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2 text-body-sm text-primary-ink">
@@ -415,6 +431,8 @@ function RoutineScreenForm() {
         )}
       </div>
 
+      {/* An existing routine shows Save only once something changed, so it never covers the history. */}
+      {(!existing || dirty) && (
       <div className="pb-safe fixed inset-x-0 bottom-16 z-40 mx-auto max-w-xl px-4 pb-3">
         <button
           type="button"
@@ -425,6 +443,7 @@ function RoutineScreenForm() {
           {save.isPending ? 'Saving…' : existing ? 'Save changes' : 'Create routine'}
         </button>
       </div>
+      )}
     </Page>
   );
 }

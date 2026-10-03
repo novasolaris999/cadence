@@ -7,13 +7,16 @@ import { Page } from '../../components/Page';
 import { Toggle } from '../../components/Toggle';
 import { Chip, DaysPicker, DURATIONS, Field, FormCard, HABIT_ICONS, SectionTitle, TimeInput } from '../../components/form';
 import { newId } from '../../data/api';
-import { useBlocks, useCategories, useRoutines, useSaveTarget, useTargets } from '../../data/queries';
-import { pct, tally, targetStreak } from '../../domain/metrics';
+import { useCategories, useRoutines, useSaveTarget, useTargetBlocks, useTargets } from '../../data/queries';
 import { targetDays } from '../../domain/schedule';
-import { addDays, formatDays, formatDuration, formatTime } from '../../domain/time';
+import { formatDays, formatDuration, formatTime } from '../../domain/time';
 import type { Target, Weekday } from '../../domain/types';
 import { QUICK, ROUTINE_DURATIONS, copyHabit, habitLength } from '../../domain/routines';
 import { useNow } from '../../theme/useNow';
+import { HabitHistory } from './HabitHistory';
+
+/** Early enough to include every block ever recorded. */
+export const HISTORY_FROM = '2000-01-01';
 
 const blank = (): Target => ({
   id: newId(),
@@ -95,7 +98,8 @@ function TargetDetailScreenForm() {
     if (copyOf && draft) nameInput.current?.select();
   }, [copyOf, draft !== null]);
 
-  const { data: history = [] } = useBlocks(addDays(now.today, -56), now.today);
+  // The habit's whole history (paged past Supabase's 1000-row limit), for the History section.
+  const { data: history = [] } = useTargetBlocks(existing?.id ?? null, HISTORY_FROM);
 
   if (targetId && !isLoading && !existing) {
     return (
@@ -110,10 +114,9 @@ function TargetDetailScreenForm() {
 
   const set = <K extends keyof Target>(k: K, v: Target[K]) => setDraft({ ...draft, [k]: v });
   const category = categories.find((c) => c.id === draft.categoryId) ?? null;
-  const mine = history.filter((b) => b.targetId === draft.id);
-  const stats = tally(mine, now.today);
   const days = targetDays(draft);
   const canSave = draft.name.trim().length > 0;
+  const dirty = existing !== undefined && JSON.stringify(draft) !== JSON.stringify(existing);
   // In a routine, the routine decides days, time, and protected; the habit keeps its name and length.
   const routine = routines.find((r) => r.id === draft.routineId) ?? null;
   const quick = draft.durationMin === QUICK;
@@ -154,6 +157,8 @@ function TargetDetailScreenForm() {
             </Link>
           )}
         </div>
+
+        {existing && <HabitHistory target={existing} blocks={history} today={now.today} />}
 
         {source && (
           <p className="-mt-1 flex items-center gap-2 rounded-xl bg-primary/10 px-3 py-2 text-body-sm text-primary-ink">
@@ -310,22 +315,6 @@ function TargetDetailScreenForm() {
         </FormCard>
         )}
 
-        {existing && (
-          <FormCard>
-            <div className="flex items-center justify-between">
-              <span className="text-label-sm font-bold uppercase tracking-wider text-faint">Last 8 weeks</span>
-              <span className="text-label-md text-muted">
-                Streak {targetStreak(mine, now.today)}
-              </span>
-            </div>
-            <div className="flex items-baseline gap-2">
-              <span className="font-display text-metric font-bold">{pct(stats.rate)}</span>
-              <span className="text-body-sm text-muted">
-                {stats.hits} hits · {stats.misses} misses
-              </span>
-            </div>
-          </FormCard>
-        )}
 
         {existing && (
           <button
@@ -339,6 +328,8 @@ function TargetDetailScreenForm() {
         )}
       </div>
 
+      {/* An existing habit shows Save only once something changed, so it never covers the history. */}
+      {(!existing || dirty) && (
       <div className="pb-safe fixed inset-x-0 bottom-16 z-40 mx-auto max-w-xl px-4 pb-3">
         <div className="flex gap-2">
           {!existing && (
@@ -361,6 +352,7 @@ function TargetDetailScreenForm() {
           </button>
         </div>
       </div>
+      )}
     </Page>
   );
 }

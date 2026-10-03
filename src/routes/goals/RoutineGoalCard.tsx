@@ -8,7 +8,9 @@ import { pct, rateTier, tally, targetStreak } from '../../domain/metrics';
 import { isNewTarget } from '../../domain/novelty';
 import { habitLength, routineMinutes } from '../../domain/routines';
 import { targetDays } from '../../domain/schedule';
-import { formatDays, formatDuration, formatTime } from '../../domain/time';
+import { formatDays, formatDuration, formatTime, type Period } from '../../domain/time';
+import { routineCellsForRange } from '../../domain/history';
+import { HitGrid } from './HitGrid';
 import type { Block, Category, ISODate, Routine, Target } from '../../domain/types';
 
 const TIER: Record<ReturnType<typeof rateTier>, string> = {
@@ -28,6 +30,7 @@ export function RoutineGoalCard({
   category,
   periodBlocks,
   historyBlocks,
+  period,
   today,
 }: {
   routine: Routine;
@@ -36,10 +39,12 @@ export function RoutineGoalCard({
   category: Category | null;
   periodBlocks: Block[];
   historyBlocks: Block[];
+  period: Period;
   today: ISODate;
 }) {
   const ids = new Set(habits.map((h) => h.id));
-  const all = tally(periodBlocks.filter((b) => ids.has(b.targetId ?? '')), today);
+  const mine = periodBlocks.filter((b) => ids.has(b.targetId ?? ''));
+  const all = tally(mine, today);
   const minutes = routineMinutes(habits);
   const isNew = routine.active && isNewTarget(routine.createdAt, today);
   return (
@@ -67,6 +72,16 @@ export function RoutineGoalCard({
         </div>
         <span className={cx('shrink-0 rounded-full px-2 py-0.5 text-label-sm font-semibold', TIER[rateTier(all.rate)])}>{pct(all.rate)}</span>
       </Link>
+
+      <div className="px-3.5 pb-1">
+        <HitGrid
+          cells={routineCellsForRange(mine, period.from, period.to, today)}
+          scope={period.scope}
+          from={period.from}
+          to={period.to}
+          highlightDays={targetDays(routine)}
+        />
+      </div>
 
       <ol className="relative flex flex-col px-3.5 pb-3">
         <span className={cx('absolute top-3 bottom-6 left-[25px] w-0.5 rounded-full opacity-30', catBg(category))} aria-hidden />

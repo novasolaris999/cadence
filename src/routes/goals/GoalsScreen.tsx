@@ -3,25 +3,20 @@ import { Link, useSearchParams } from 'react-router';
 import { cx } from '../../components/cx';
 import { Icon } from '../../components/Icon';
 import { Page } from '../../components/Page';
-import { SegmentedControl } from '../../components/SegmentedControl';
+import { PeriodNav, SCOPES } from '../../components/PeriodNav';
+import { StatTile } from '../../components/StatTile';
 import { Sheet } from '../../components/Sheet';
 import { RoutineIcon } from '../../components/RoutineParts';
 import { useBlocks, useCategories, useRoutines, useTargets } from '../../data/queries';
 import { ROUTINE_TEMPLATES, habitLength, routineMinutes } from '../../domain/routines';
 import { formatDuration } from '../../domain/time';
 import { overallStreak, pct, tally } from '../../domain/metrics';
-import { addDays, formatDateSpan, formatPeriod, periodContaining, shiftPeriod, type Scope } from '../../domain/time';
+import { addDays, formatDateSpan, periodContaining, shiftPeriod, type Scope } from '../../domain/time';
 import { useNow } from '../../theme/useNow';
 import { GoalCard } from './GoalCard';
 import { RoutineGoalCard } from './RoutineGoalCard';
 import { GridLegend } from './HitGrid';
 
-const SCOPES: { value: Scope; label: string }[] = [
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'quarterly', label: 'Quarterly' },
-  { value: 'yearly', label: 'Yearly' },
-];
 
 /** Habits: routines (as supersets) and habits, with hit / miss / rest history for a period (goals-dark.html). */
 export function GoalsScreen() {
@@ -69,6 +64,7 @@ export function GoalsScreen() {
       category={r.categoryId ? (catById.get(r.categoryId) ?? null) : null}
       periodBlocks={inPeriod}
       historyBlocks={blocks}
+      period={period}
       today={now.today}
     />
   );
@@ -101,22 +97,7 @@ export function GoalsScreen() {
           </button>
         </div>
 
-        <SegmentedControl label="Scope" value={scope} options={SCOPES} onChange={(s) => set(s, 0)} />
-
-        <div className="flex items-center justify-between">
-          <button aria-label="Previous period" onClick={() => set(scope, offset - 1)} className="rounded-full p-1 text-faint hover:bg-surface-2 hover:text-text">
-            <Icon name="chevron_left" />
-          </button>
-          <span className="text-label-lg font-semibold">{formatPeriod(period)}</span>
-          <button
-            aria-label="Next period"
-            disabled={offset === 0}
-            onClick={() => set(scope, offset + 1)}
-            className="rounded-full p-1 text-faint hover:bg-surface-2 hover:text-text disabled:opacity-30"
-          >
-            <Icon name="chevron_right" />
-          </button>
-        </div>
+        <PeriodNav scope={scope} offset={offset} period={period} onChange={set} />
 
         {/* Summary strip */}
         <section className="flex flex-col gap-2.5 rounded-xl bg-surface p-3.5 shadow-card">
@@ -129,15 +110,15 @@ export function GoalsScreen() {
             </span>
           </div>
           <div className="grid grid-cols-3 gap-2">
-            <Metric label="Consistency" value={pct(current.rate)}>
+            <StatTile label="Consistency" value={pct(current.rate)}>
               {delta !== null && (
                 <span className={cx(delta >= 0 ? 'text-hit-ink' : 'text-miss-ink')}>
                   {delta >= 0 ? '+' : ''}
                   {delta} pts vs prev
                 </span>
               )}
-            </Metric>
-            <Metric
+            </StatTile>
+            <StatTile
               label="Streak"
               value={
                 <>
@@ -147,8 +128,8 @@ export function GoalsScreen() {
               }
             >
               <span className="text-muted">No-miss days</span>
-            </Metric>
-            <Metric
+            </StatTile>
+            <StatTile
               label="Hits / misses"
               value={
                 <span className="flex items-baseline gap-1 text-headline-lg">
@@ -159,11 +140,11 @@ export function GoalsScreen() {
               }
             >
               <span className="text-muted">{current.pending + current.upcoming} still ahead</span>
-            </Metric>
+            </StatTile>
           </div>
         </section>
 
-        <GridLegend />
+        <GridLegend partial={activeRoutines.length > 0} />
 
         {active.length === 0 && activeRoutines.length === 0 ? (
           <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-4 py-8 text-center">
@@ -293,12 +274,3 @@ function NewSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
-function Metric({ label, value, children }: { label: string; value: ReactNode; children?: ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col rounded-lg bg-surface-2 p-2.5">
-      <span className="truncate text-label-sm uppercase text-faint">{label}</span>
-      <span className="mt-0.5 flex h-8 items-baseline font-display text-metric font-bold">{value}</span>
-      <span className="mt-0.5 truncate text-label-sm">{children}</span>
-    </div>
-  );
-}

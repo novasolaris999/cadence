@@ -102,7 +102,7 @@ AI-generated suggestions, search, multiple users.
 - [x] Phase 4: Weekly on real data (drag between days, Re-run with preview) (approved and published to production)
 - [x] Phase 4.5 (owner approved, before phase 5): Routines (supersets of habits), quick habits, Habit naming,
   migration 0002 (0002 applied by owner; approved and published to production)
-- [ ] Phase 5: Goals history views
+- [x] Phase 5: Goals history views: habit and routine history, routine grids on the Habits tab, paged reads (built; awaiting owner review, then publish to `main`)
 - [ ] Phase 6: Insights
 - [ ] Phase 7: Polish and final production check (PWA and production already live since phase 2.5)
 
@@ -238,6 +238,17 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   new-habit form has "Save & add another": saves, keeps every setting, clears only the name. (Published to production.)
 - Before 0002 is applied, the app still works without routines: reads fall back (missing column/table codes) and
   saving a routine shows "Database update needed".
+
+- History (phase 5, rules in `src/domain/history.ts`): each habit's page opens with History (scope + arrows,
+  rate, change vs previous period, current and best streak, period grid, rate over the last 8 periods, rate by
+  weekday over the last 12 weeks with the weakest named, latest 8 results). Each routine's page opens with
+  History (completion, all-done days, streak of days with nothing missed, change; a whole-routine grid where a
+  day is all done / partial / missed; one strip per habit, days for week and month, weeks for quarter and year).
+  Routine cards on the Habits tab carry the whole-routine grid. Charts are single-series bars (`RateBars`), tap or
+  hover to read a bar. Default scope is monthly.
+- Supabase returns at most 1000 rows per request: `listBlocks` and `listTargetBlocks` page through with
+  `.range()` and a stable order (`readAll` in `supabaseApi.ts`). History pages read a habit's whole history.
+- On existing habits and routines, the floating Save button appears only after an edit, so it never covers history.
 
 ## Visual check workflow
 

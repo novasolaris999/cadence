@@ -196,6 +196,20 @@ export function formatDateSpan(from: ISODate, to: ISODate): string {
     : `${monthShort(from)} ${dayNum(from)} – ${monthShort(to)} ${dayNum(to)}`;
 }
 
+/** Short period label for chart axes: "W40", "Sep", "Q3", "2026". */
+export function formatPeriodShort(p: Period): string {
+  switch (p.scope) {
+    case 'weekly':
+      return `W${isoWeekNumber(p.from)}`;
+    case 'monthly':
+      return monthShort(p.from);
+    case 'quarterly':
+      return `Q${Math.floor((Number(p.from.slice(5, 7)) - 1) / 3) + 1}`;
+    case 'yearly':
+      return p.from.slice(0, 4);
+  }
+}
+
 export function formatPeriod(p: Period): string {
   const y = p.from.slice(0, 4);
   switch (p.scope) {
