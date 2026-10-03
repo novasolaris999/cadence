@@ -1,14 +1,15 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link, useNavigate, useParams } from 'react-router';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
 import { cx } from '../../components/cx';
 import { catBg, catSoft } from '../../components/categoryColor';
 import { Icon, isIconName, type IconName } from '../../components/Icon';
 import { Page } from '../../components/Page';
 import { Toggle } from '../../components/Toggle';
+import { Chip, DURATIONS, Field, TimeInput } from '../../components/form';
 import { useBlocks, useCategories, useSaveTarget, useTargets } from '../../data/queries';
 import { pct, tally, targetStreak } from '../../domain/metrics';
 import { targetDays } from '../../domain/schedule';
-import { addDays, formatDays, formatDuration, formatTime, parseTime, weekdayInitial } from '../../domain/time';
+import { addDays, formatDays, formatDuration, formatTime, weekdayInitial } from '../../domain/time';
 import type { Target, Weekday } from '../../domain/types';
 import { useNow } from '../../theme/useNow';
 
@@ -16,7 +17,6 @@ const ICONS: IconName[] = [
   'fitness_center', 'sports_tennis', 'directions_run', 'self_improvement', 'pill', 'wb_sunny',
   'menu_book', 'edit_note', 'psychology', 'favorite', 'restaurant', 'local_cafe', 'work', 'bedtime',
 ];
-const DURATIONS = [15, 30, 45, 60, 90, 120];
 const WEEKDAYS: Weekday[] = [1, 2, 3, 4, 5, 6, 7];
 
 const blank = (): Target => ({
@@ -34,16 +34,38 @@ const blank = (): Target => ({
   active: true,
 });
 
+/**
+ * New-target defaults, optionally prefilled from the add sheet on Today or Weekly
+ * (?name=&start=&duration=&day=&category=).
+ */
+function fromParams(p: URLSearchParams): Target {
+  const t = blank();
+  const num = (k: string) => {
+    const v = Number(p.get(k));
+    return Number.isFinite(v) && p.has(k) ? v : null;
+  };
+  const day = num('day');
+  return {
+    ...t,
+    name: p.get('name') ?? t.name,
+    categoryId: p.get('category') ?? t.categoryId,
+    preferredStart: num('start') ?? t.preferredStart,
+    durationMin: num('duration') ?? t.durationMin,
+    ...(day && day >= 1 && day <= 7 ? { preferredDays: [day as Weekday], frequencyPerWeek: 1 } : {}),
+  };
+}
+
 /** A target's rules: what it is, when it lands, and how the scheduler treats it (targets-light.html). */
 export function TargetDetailScreen() {
   const { targetId } = useParams();
+  const [params] = useSearchParams();
   const navigate = useNavigate();
   const now = useNow();
   const { data: targets, isLoading } = useTargets();
   const { data: categories = [] } = useCategories();
   const save = useSaveTarget();
   const existing = targets?.find((t) => t.id === targetId);
-  const [draft, setDraft] = useState<Target | null>(targetId ? null : blank());
+  const [draft, setDraft] = useState<Target | null>(() => (targetId ? null : fromParams(params)));
 
   useEffect(() => {
     if (existing && !draft) setDraft(existing);
@@ -290,34 +312,6 @@ function SectionTitle({ children, color }: { children: ReactNode; color: string 
   );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between">
-        <span className="text-label-sm font-semibold uppercase tracking-wider text-faint">{label}</span>
-        {hint && <span className="text-label-md font-semibold text-primary-ink">{hint}</span>}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      aria-pressed={active}
-      onClick={onClick}
-      className={cx(
-        'flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-label-md font-medium',
-        active ? 'border-primary bg-primary/10 text-primary-ink' : 'border-border bg-surface-2 text-muted hover:text-text',
-      )}
-    >
-      {children}
-    </button>
-  );
-}
-
 function Stepper({
   value,
   min,
@@ -343,19 +337,5 @@ function Stepper({
         +
       </button>
     </div>
-  );
-}
-
-/** Native time picker, snapped to the 15-minute grid. */
-function TimeInput({ label, value, onChange }: { label: string; value: number; onChange: (m: number) => void }) {
-  return (
-    <input
-      type="time"
-      step={900}
-      aria-label={label}
-      value={formatTime(value)}
-      onChange={(e) => e.target.value && onChange(Math.round(parseTime(e.target.value) / 15) * 15)}
-      className="rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 font-mono text-body-md text-text"
-    />
   );
 }

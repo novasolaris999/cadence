@@ -8,6 +8,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Block, Category, DayLog, ISODate, Settings, Target } from '../domain/types';
 import { sampleStore } from '../sample/store';
+import type { MovePlan } from '../domain/moves';
 import { localNowStamp } from './localStamp';
 
 export const keys = {
@@ -77,5 +78,71 @@ export function useSaveTarget() {
       return target;
     },
     onSettled: () => qc.invalidateQueries({ queryKey: keys.targets }),
+  });
+}
+
+export function useCreateBlock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (block: Block) => {
+      sampleStore.blocks.push(block);
+      return block;
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks }),
+  });
+}
+
+export function useUpdateBlock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Partial<Omit<Block, 'id'>> }) => {
+      const b = sampleStore.blocks.find((x) => x.id === id);
+      if (!b) return;
+      Object.assign(b, patch);
+      // Keep completed_at consistent with status (the database enforces this too).
+      if (patch.status && patch.status !== 'done') b.completedAt = null;
+      if (patch.status === 'done' && !b.completedAt) b.completedAt = localNowStamp();
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks }),
+  });
+}
+
+export function useDeleteBlock() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      sampleStore.blocks = sampleStore.blocks.filter((b) => b.id !== id);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks }),
+  });
+}
+
+/** Applies a move plan from domain/moves.ts: block times, and the target's time for "all future". */
+export function useApplyMove() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (plan: MovePlan) => {
+      for (const change of plan.blocks) {
+        const b = sampleStore.blocks.find((x) => x.id === change.id);
+        if (b) Object.assign(b, { start: change.start, moved: change.moved });
+      }
+      if (plan.target) {
+        const t = sampleStore.targets.find((x) => x.id === plan.target!.id);
+        if (t) Object.assign(t, plan.target);
+      }
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: keys.allBlocks });
+      qc.invalidateQueries({ queryKey: keys.targets });
+    },
+  });
+}
+
+/** Every block, for move planning across weeks. Phase 3 narrows this to one target's future blocks. */
+export function useAllBlocksOf(targetId: string | null) {
+  return useQuery<Block[]>({
+    queryKey: ['blocks', 'target', targetId],
+    enabled: targetId !== null,
+    queryFn: async () => sampleStore.blocks.filter((b) => b.targetId === targetId),
   });
 }

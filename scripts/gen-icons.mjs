@@ -13,7 +13,7 @@ const ICONS = [
   'local_fire_department', 'lock', 'logout', 'menu_book', 'nightlight', 'monitoring', 'monitoring-fill', 'autorenew', 'palette', 'pill',
   'psychology', 'restaurant', 'schedule', 'self_improvement', 'shield', 'skip_next',
   'sports_tennis', 'sync', 'timer', 'trending_down', 'trending_up', 'troubleshoot',
-  'unfold_more', 'verified', 'view_day', 'wb_sunny', 'work', 'workspace_premium',
+  'keyboard_arrow_up', 'keyboard_arrow_down', 'repeat', 'event', 'event_upcoming', 'unfold_more', 'verified', 'view_day', 'wb_sunny', 'work', 'workspace_premium',
 ];
 
 const dir = 'node_modules/@material-symbols/svg-400/outlined';

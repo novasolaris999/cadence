@@ -111,6 +111,20 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   Weekday cluster: >= 2 misses on that weekday and >= 50% of that weekday's occurrences missed,
   over the last 8 weeks.
 - Win rule: 100% with at least 2 hits in the range, or a current streak of 7+.
+- Today edge toggles: subtle controls at the top and bottom of the timeline extend it to 00:00 / 24:00.
+  Each is remembered per device (localStorage, not the database: it is a view preference). A coral dot
+  on a collapsed toggle means the current time is hidden inside it.
+- Adding: the + button and tapping an empty timeline row open one sheet with "Just this day" (one-off
+  block) or "Repeats weekly" (hands off to the new-target form, prefilled via URL params).
+- Dragging on Today: hold 250 ms on touch (or drag 6 px with a mouse). Collapsed stretches open during
+  the drag so every 15 minutes has the same height; the page scroll is corrected so the block stays under
+  the finger. Target blocks then ask for a scope: only this day, rest of this week, or this and all
+  future (which also moves the target's preferred time). One-off and finished blocks just move.
+  dnd-kit's own layout-shift scroll compensation and the browser's scroll anchoring are both off,
+  because the timeline does that correction itself.
+- Weekly: tapping a day ring highlights that day (no page jump). Under 768px the days are a sideways
+  swipe row with one day per screen; from 768px (Pixel Fold inner screen, tablets, desktop) all seven
+  sit side by side.
 
 ## Visual check workflow
 

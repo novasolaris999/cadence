@@ -1,12 +1,16 @@
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { BlockSheet, type BlockSheetMode } from '../../components/BlockSheet';
 import { Fab } from '../../components/Fab';
 import { Icon } from '../../components/Icon';
+import { MoveScopeSheet, type PendingMove } from '../../components/MoveScopeSheet';
 import { Page } from '../../components/Page';
-import { useBlockViews } from '../../components/blockView';
-import { useBlocks, useDayLogs, useSettings, useToggleBlockDone } from '../../data/queries';
+import { useBlockViews, type BlockView } from '../../components/blockView';
+import { usePersistentToggle } from '../../components/usePersistentToggle';
+import { useBlocks, useDayLogs, useSettings, useToggleBlockDone, useUpdateBlock } from '../../data/queries';
 import { dayProgress } from '../../domain/metrics';
 import { formatDayShort, formatTime } from '../../domain/time';
-import type { ISODate, Minutes } from '../../domain/types';
+import type { Block, ISODate, Minutes } from '../../domain/types';
 import { useNow } from '../../theme/useNow';
 import { Timeline } from './Timeline';
 import { WeekStrip } from './WeekStrip';
@@ -23,9 +27,38 @@ export function TodayScreen() {
   const { data: blocks } = useBlocks(date, date);
   const { data: logs = [] } = useDayLogs(date, date);
   const toggle = useToggleBlockDone();
+  const update = useUpdateBlock();
   const views = useBlockViews(blocks);
   const progress = dayProgress(blocks ?? []);
   const log = logs[0];
+
+  const [showEarly, setShowEarly] = usePersistentToggle('cadence.timeline.showEarly');
+  const [showLate, setShowLate] = usePersistentToggle('cadence.timeline.showLate');
+  const [sheet, setSheet] = useState<BlockSheetMode | null>(null);
+  const [pending, setPending] = useState<PendingMove | null>(null);
+
+  // While the scope question is open, show the block at its new time.
+  const shown = useMemo(
+    () =>
+      pending
+        ? views.map((v) => (v.block.id === pending.block.id ? { ...v, block: { ...v.block, start: pending.newStart } } : v))
+        : views,
+    [views, pending],
+  );
+
+  /** Target blocks still planned ask how far the move reaches; anything else just moves. */
+  const requestMove = (view: Pick<BlockView, 'block' | 'target'>, newStart: Minutes) => {
+    if (view.target && view.block.status === 'planned') {
+      setPending({ block: view.block, target: view.target, newStart });
+    } else {
+      update.mutate({ id: view.block.id, patch: { start: newStart, moved: true } });
+    }
+  };
+
+  const nextSlot = () => {
+    const base = isToday ? Math.ceil((now.minutes + 1) / 15) * 15 : (settings?.wakeAnchor ?? 9 * 60);
+    return Math.min(base, 23 * 60 + 30);
+  };
 
   return (
     <Page>
@@ -53,18 +86,32 @@ export function TodayScreen() {
 
       {settings && (
         <Timeline
-          views={views}
+          views={shown}
           wakeAnchor={settings.wakeAnchor}
           sleepAnchor={settings.sleepAnchor}
           now={isToday ? now.minutes : null}
           past={date < now.today}
+          showEarly={showEarly}
+          showLate={showLate}
+          onShowEarly={setShowEarly}
+          onShowLate={setShowLate}
           onToggle={(id) => toggle.mutate(id)}
+          onOpen={(view) => setSheet({ kind: 'edit', view })}
+          onAddAt={(start) => setSheet({ kind: 'add', date, start })}
+          onDrop={requestMove}
         />
       )}
 
       <LogChip icon="bedtime" label="Slept" value={log?.sleep ?? null} />
 
-      <Fab label="Add block" />
+      <Fab label="Add block" onClick={() => setSheet({ kind: 'add', date, start: nextSlot() })} />
+
+      <BlockSheet
+        mode={sheet}
+        onClose={() => setSheet(null)}
+        onMove={(block: Block, newStart) => requestMove({ block, target: views.find((v) => v.block.id === block.id)?.target ?? null }, newStart)}
+      />
+      <MoveScopeSheet pending={pending} onDone={() => setPending(null)} />
     </Page>
   );
 }

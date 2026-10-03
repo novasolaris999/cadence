@@ -15,17 +15,24 @@ export type Segment =
 const floorTo = (m: number, step: number) => Math.floor(m / step) * step;
 const ceilTo = (m: number, step: number) => Math.ceil(m / step) * step;
 
-/** Visible span: from the wake anchor (or earliest block) to the sleep anchor (or latest end). */
+/**
+ * Visible span: from the wake anchor (or earliest block) to the sleep anchor (or latest end).
+ * `showEarly` / `showLate` extend it to 00:00 / 24:00 (the timeline's edge toggles).
+ */
 export function daySpan(
   blocks: Pick<Block, 'start' | 'durationMin'>[],
   wakeAnchor: Minutes,
   sleepAnchor: Minutes,
+  opts: { showEarly?: boolean; showLate?: boolean } = {},
 ): { from: Minutes; to: Minutes } {
   // A sleep anchor after midnight (e.g. 00:30) still ends the timeline at 24:00.
   const sleepEnd = sleepAnchor < 12 * 60 ? 24 * 60 : sleepAnchor;
   const from = Math.min(wakeAnchor, ...blocks.map((b) => b.start));
   const to = Math.max(sleepEnd, ...blocks.map((b) => b.start + b.durationMin));
-  return { from: floorTo(from, 60), to: Math.min(24 * 60, ceilTo(to, 60)) };
+  return {
+    from: opts.showEarly ? 0 : floorTo(from, 60),
+    to: opts.showLate ? 24 * 60 : Math.min(24 * 60, ceilTo(to, 60)),
+  };
 }
 
 /**
@@ -105,8 +112,76 @@ export function lanes<T extends Pick<Block, 'id' | 'start' | 'durationMin'>>(
   return result;
 }
 
+/** Label for a timeline section header. Before 05:00 is night, not morning. */
+export function sectionLabel(min: Minutes): string {
+  return min < 5 * 60 ? 'Night' : periodOf(min);
+}
+
+/** Morning / afternoon / evening, used to group Weekly. */
 export function periodOf(min: Minutes): 'Morning' | 'Afternoon' | 'Evening' {
   if (min < 12 * 60) return 'Morning';
   if (min < 17 * 60) return 'Afternoon';
   return 'Evening';
+}
+
+// ---------- Pixel layout ----------
+// The timeline is drawn from this model, and drag positions are converted back with it,
+// so drawing and dragging can never disagree.
+
+export const ROW = 32; // px per 15-minute row
+export const PX = ROW / SLOT; // px per minute
+export const HEADER_H = 24; // "07:00 · Morning" label above a run of rows
+export const GAP_H = 44; // a collapsed "Free · 2h" row
+
+export interface Placed {
+  kind: 'rows' | 'gap';
+  from: Minutes;
+  to: Minutes;
+  /** y of the first row (or of the gap), below any header. */
+  top: number;
+  height: number;
+  header: boolean;
+}
+
+export function place(segs: Segment[]): { items: Placed[]; height: number } {
+  let y = 0;
+  const items: Placed[] = [];
+  segs.forEach((s, i) => {
+    if (s.kind === 'gap') {
+      items.push({ ...s, top: y, height: GAP_H, header: false });
+      y += GAP_H;
+      return;
+    }
+    const header = i === 0 || segs[i - 1]?.kind === 'gap';
+    if (header) y += HEADER_H;
+    const height = ((s.to - s.from) / SLOT) * ROW;
+    items.push({ ...s, top: y, height, header });
+    y += height;
+  });
+  return { items, height: y };
+}
+
+/** y position of a minute. Inside a collapsed gap, proportional; outside the span, clamped. */
+export function yOf(items: Placed[], m: Minutes): number {
+  if (items.length === 0) return 0;
+  for (const it of items) {
+    if (m < it.to) {
+      if (m <= it.from) return it.top;
+      return it.kind === 'rows' ? it.top + (m - it.from) * PX : it.top + ((m - it.from) / (it.to - it.from)) * it.height;
+    }
+  }
+  const last = items[items.length - 1]!;
+  return last.top + last.height;
+}
+
+/** The minute at a y position (inverse of yOf). */
+export function minuteAt(items: Placed[], y: number): Minutes {
+  if (items.length === 0) return 0;
+  for (const it of items) {
+    if (y < it.top + it.height) {
+      if (y <= it.top) return it.from;
+      return it.kind === 'rows' ? it.from + (y - it.top) / PX : it.from + ((y - it.top) / it.height) * (it.to - it.from);
+    }
+  }
+  return items[items.length - 1]!.to;
 }

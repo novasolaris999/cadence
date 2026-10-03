@@ -91,6 +91,8 @@
     background-color: var(--c-bg);
     color: var(--c-text);
     -webkit-tap-highlight-color: transparent;
+    /* No automatic scroll anchoring: the timeline corrects scroll itself when stretches open or close. */
+    overflow-anchor: none;
   }
   body {
     @apply font-sans text-body-md antialiased;

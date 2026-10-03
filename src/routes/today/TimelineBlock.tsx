@@ -109,7 +109,10 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle }: Props) {
         {isNow ? (
           <button
             type="button"
-            onClick={onToggle}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
             className="flex items-center gap-1 rounded-full bg-primary px-3 py-1.5 text-label-sm font-semibold text-on-primary shadow-card active:scale-95"
           >
             <Icon name="check" size={16} /> Complete
