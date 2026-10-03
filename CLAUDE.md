@@ -38,8 +38,8 @@ Cadence is a personal daily routine and goal tracker for one user.
   - `VITE_SUPABASE_PUBLISHABLE_KEY` (`sb_publishable_...`; never a secret / service role key).
     `VITE_SUPABASE_ANON_KEY` is still read as a fallback.
 - The publishable key is public by design. Security comes from row level security, not from hiding it.
-- Without these vars the app runs on in-memory demo data (`src/data/sampleApi.ts`) and shows a
-  "Demo data" badge. This is how screenshot checks run in the build container.
+- Without these vars the app always runs on in-memory demo data (`src/data/sampleApi.ts`) and shows a
+  "Demo" badge. This is how screenshot checks run in the build container.
 - One-time Supabase setup steps for the owner: `docs/supabase-setup.md`.
 
 ## Conventions
@@ -71,8 +71,9 @@ Cadence is a personal daily routine and goal tracker for one user.
 - `src/domain/` holds pure functions (scheduling rules, metrics, insights). No React, no Supabase.
   Every rule here has a unit test.
 - `src/data/` is the only folder that talks to Supabase. Screens use the hooks in `src/data/queries.ts`,
-  which call `api` (`src/data/index.ts`): `supabaseApi` when configured, `sampleApi` otherwise. Both
-  implement `DataApi` (`src/data/api.ts`); add new storage operations to all three.
+  which call `getApi()` (`src/data/index.ts`) at request time: `supabaseApi`, or `sampleApi` when Supabase
+  is not configured or Demo mode is on. Both implement `DataApi` (`src/data/api.ts`); add new storage
+  operations to all three. Every query key starts with the mode ('supabase' | 'demo').
 - Screens live in `src/routes/<screen>/`. Shared UI lives in `src/components/`. SVG charts in `src/charts/`.
 
 ### Before every push
@@ -120,6 +121,11 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   Weekday cluster: >= 2 misses on that weekday and >= 50% of that weekday's occurrences missed,
   over the last 8 weeks.
 - Win rule: 100% with at least 2 hits in the range, or a current streak of 7+.
+- Demo mode (owner request): a switch in Settings, remembered per device. On: every read and write goes
+  to the in-memory sample data; nothing is sent to Supabase (verified in a browser test that records
+  requests). Edits made in demo mode vanish on reload. Off: real data, untouched. The "Demo" badge in
+  the header opens Settings. Switching rebuilds the screen area (`<main key={mode}>`). First-sign-in
+  setup always targets the real account, and theme syncing is skipped while in demo mode.
 - IDs are generated in the browser (`crypto.randomUUID()`), so new rows can appear instantly.
 - Archived targets always appear in a folded "Archived (n)" section on Goals, so they can be restored.
 - Category editing lives in the Settings sheet (avatar): tap the dot to recolor, edit the name in place,

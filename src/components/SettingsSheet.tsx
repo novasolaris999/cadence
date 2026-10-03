@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from 'react';
 import { signOut, useAuth } from '../data/auth';
 import { newId } from '../data/api';
-import { useCategories, useDeleteCategory, useSaveCategory, useSettings, useUpdateSettings } from '../data/queries';
+import { supabaseConfigured, useDemoMode } from '../data/index';
+import { useCategories, useDeleteCategory, useSaveCategory, useSetDemoMode, useSettings, useUpdateSettings } from '../data/queries';
 import { CATEGORY_COLORS, type Category, type ThemePref } from '../domain/types';
 import { useTheme } from '../theme/ThemeProvider';
 import { catBg } from './categoryColor';
@@ -10,6 +11,7 @@ import { TimeInput } from './form';
 import { Icon } from './Icon';
 import { SegmentedControl } from './SegmentedControl';
 import { Sheet } from './Sheet';
+import { Toggle } from './Toggle';
 
 /** Opened from the avatar: theme, wake/sleep anchors, categories, and your account. */
 export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -17,6 +19,7 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
   const auth = useAuth();
   const { data: settings } = useSettings();
   const update = useUpdateSettings();
+  const demo = useDemoMode();
 
   return (
     <Sheet open={open} onClose={onClose} title="Settings">
@@ -33,8 +36,10 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
         />
       </Section>
 
+      {supabaseConfigured && <DemoModeSection />}
+
       {settings && (
-        <Section title="Anchors">
+        <Section title={demo ? 'Anchors (demo)' : 'Anchors'}>
           <div className="grid grid-cols-2 gap-2">
             <label className="flex flex-col gap-1 rounded-xl bg-surface-2 px-3 py-2">
               <span className="text-label-sm uppercase text-faint">Wake</span>
@@ -51,7 +56,7 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
         </Section>
       )}
 
-      <Section title="Categories">
+      <Section title={demo ? 'Categories (demo)' : 'Categories'}>
         <CategoryEditor />
       </Section>
 
@@ -65,7 +70,8 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
           </div>
         ) : (
           <p className="rounded-xl bg-warn/10 p-3 text-body-sm text-warn-ink">
-            Demo data: Supabase is not connected in this build, so changes disappear when you reload.
+            Supabase is not connected in this build, so the app runs on sample data and changes disappear when you
+            reload.
           </p>
         )}
       </Section>
@@ -155,5 +161,29 @@ function CategoryEditor() {
       </div>
       {confirm && <p className="text-label-sm text-faint">Targets in a deleted category keep working, just without a category.</p>}
     </div>
+  );
+}
+
+/**
+ * Demo mode: shows sample routines and history so you can try features while the app is being built.
+ * Your real data stays in Supabase, untouched and hidden until you switch back.
+ */
+function DemoModeSection() {
+  const demo = useDemoMode();
+  const setDemo = useSetDemoMode();
+  return (
+    <Section title="Demo mode">
+      <div className={cx('flex flex-col gap-2 rounded-xl px-3 py-2.5', demo ? 'bg-warn/10' : 'bg-surface-2')}>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-label-lg font-semibold">Show sample data</span>
+          <Toggle label="Demo mode" checked={demo} onChange={setDemo} />
+        </div>
+        <p className="text-body-sm text-muted">
+          {demo
+            ? 'On: you are looking at sample routines. Your real data is safe and hidden. Anything you change now is thrown away when you reload or switch off.'
+            : 'Try features on months of sample history. Your real data is never changed, replaced, or mixed in; switch off to return to it.'}
+        </p>
+      </div>
+    </Section>
   );
 }

@@ -7,81 +7,96 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type { MovePlan } from '../domain/moves';
 import type { Block, Category, DayLog, ISODate, Settings, Target } from '../domain/types';
-import { api } from './index';
+import { ensureSetup, getApi, isDemo, setDemo } from './index';
 import { localNowStamp } from './localStamp';
 
+// Every cache key starts with the data mode ('supabase' or 'demo'), so real and demo results
+// can never be mixed up in the cache, even if a request finishes just after you switch.
+const mode = () => getApi().mode;
+
 export const keys = {
-  setup: ['setup'] as const,
-  settings: ['settings'] as const,
-  categories: ['categories'] as const,
-  targets: ['targets'] as const,
-  blocks: (from: ISODate, to: ISODate) => ['blocks', from, to] as const,
-  allBlocks: ['blocks'] as const,
-  targetBlocks: (targetId: string | null, from: ISODate) => ['blocks', 'target', targetId, from] as const,
-  dayLogs: (from: ISODate, to: ISODate) => ['dayLogs', from, to] as const,
+  settings: () => [mode(), 'settings'] as const,
+  categories: () => [mode(), 'categories'] as const,
+  targets: () => [mode(), 'targets'] as const,
+  blocks: (from: ISODate, to: ISODate) => [mode(), 'blocks', from, to] as const,
+  allBlocks: () => [mode(), 'blocks'] as const,
+  targetBlocks: (targetId: string | null, from: ISODate) => [mode(), 'blocks', 'target', targetId, from] as const,
+  dayLogs: (from: ISODate, to: ISODate) => [mode(), 'dayLogs', from, to] as const,
 };
 
-export const dataMode = api.mode;
+/**
+ * Switches between your real data and demo data. The mode you leave has its cached results
+ * dropped, so coming back always loads fresh.
+ */
+export function useSetDemoMode() {
+  const qc = useQueryClient();
+  return (on: boolean) => {
+    if (on === isDemo()) return;
+    const leaving = getApi().mode;
+    setDemo(on);
+    qc.removeQueries({ queryKey: [leaving] });
+  };
+}
 
 /** Creates your settings row and default categories on first sign-in. Other reads wait for it. */
 export function useSetup(enabled: boolean) {
-  return useQuery({ queryKey: keys.setup, queryFn: () => api.ensureSetup().then(() => true), enabled, staleTime: Infinity });
+  return useQuery({ queryKey: ['setup'], queryFn: () => ensureSetup().then(() => true), enabled, staleTime: Infinity });
 }
 
 export function useSettings() {
-  return useQuery<Settings>({ queryKey: keys.settings, queryFn: api.getSettings });
+  return useQuery<Settings>({ queryKey: keys.settings(), queryFn: () => getApi().getSettings() });
 }
 
 export function useUpdateSettings() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (patch: Partial<Settings>) => api.updateSettings(patch),
+    mutationFn: (patch: Partial<Settings>) => getApi().updateSettings(patch),
     onMutate: (patch) => {
-      qc.setQueryData<Settings>(keys.settings, (s) => (s ? { ...s, ...patch } : s));
+      qc.setQueryData<Settings>(keys.settings(), (s) => (s ? { ...s, ...patch } : s));
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.settings }),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.settings() }),
   });
 }
 
 export function useCategories() {
-  return useQuery<Category[]>({ queryKey: keys.categories, queryFn: api.listCategories });
+  return useQuery<Category[]>({ queryKey: keys.categories(), queryFn: () => getApi().listCategories() });
 }
 
 export function useSaveCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (c: Category) => api.saveCategory(c),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.categories }),
+    mutationFn: (c: Category) => getApi().saveCategory(c),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.categories() }),
   });
 }
 
 export function useDeleteCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.deleteCategory(id),
+    mutationFn: (id: string) => getApi().deleteCategory(id),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: keys.categories });
-      qc.invalidateQueries({ queryKey: keys.targets });
+      qc.invalidateQueries({ queryKey: keys.categories() });
+      qc.invalidateQueries({ queryKey: keys.targets() });
     },
   });
 }
 
 export function useTargets() {
-  return useQuery<Target[]>({ queryKey: keys.targets, queryFn: api.listTargets });
+  return useQuery<Target[]>({ queryKey: keys.targets(), queryFn: () => getApi().listTargets() });
 }
 
 /** Create or update a target (create, edit, archive, restore all go through here). */
 export function useSaveTarget() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (t: Target) => api.saveTarget(t),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.targets }),
+    mutationFn: (t: Target) => getApi().saveTarget(t),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.targets() }),
   });
 }
 
 /** Blocks with from <= date <= to, ordered by date then start time. */
 export function useBlocks(from: ISODate, to: ISODate) {
-  return useQuery<Block[]>({ queryKey: keys.blocks(from, to), queryFn: () => api.listBlocks(from, to) });
+  return useQuery<Block[]>({ queryKey: keys.blocks(from, to), queryFn: () => getApi().listBlocks(from, to) });
 }
 
 /** One target's blocks from a date on, for move planning. */
@@ -89,18 +104,18 @@ export function useTargetBlocks(targetId: string | null, from: ISODate) {
   return useQuery<Block[]>({
     queryKey: keys.targetBlocks(targetId, from),
     enabled: targetId !== null,
-    queryFn: () => api.listTargetBlocks(targetId!, from),
+    queryFn: () => getApi().listTargetBlocks(targetId!, from),
   });
 }
 
 export function useDayLogs(from: ISODate, to: ISODate) {
-  return useQuery<DayLog[]>({ queryKey: keys.dayLogs(from, to), queryFn: () => api.listDayLogs(from, to) });
+  return useQuery<DayLog[]>({ queryKey: keys.dayLogs(from, to), queryFn: () => getApi().listDayLogs(from, to) });
 }
 
 /** Applies a change to every cached block list right away; returns a function that undoes it. */
 function patchCachedBlocks(qc: QueryClient, id: string, patch: Partial<Block>) {
-  const before = qc.getQueriesData<Block[]>({ queryKey: keys.allBlocks });
-  qc.setQueriesData<Block[]>({ queryKey: keys.allBlocks }, (list) =>
+  const before = qc.getQueriesData<Block[]>({ queryKey: keys.allBlocks() });
+  qc.setQueriesData<Block[]>({ queryKey: keys.allBlocks() }, (list) =>
     list?.map((b) => (b.id === id ? { ...b, ...patch } : b)),
   );
   return () => before.forEach(([key, data]) => qc.setQueryData(key, data));
@@ -116,42 +131,42 @@ export function statusPatch(status: Block['status'], current: Block): Partial<Bl
 export function useToggleBlockDone() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ block }: { block: Block }) => api.updateBlock(block.id, statusPatch(block.status === 'done' ? 'planned' : 'done', block)),
+    mutationFn: ({ block }: { block: Block }) => getApi().updateBlock(block.id, statusPatch(block.status === 'done' ? 'planned' : 'done', block)),
     onMutate: async ({ block }) => {
-      await qc.cancelQueries({ queryKey: keys.allBlocks });
+      await qc.cancelQueries({ queryKey: keys.allBlocks() });
       return { undo: patchCachedBlocks(qc, block.id, statusPatch(block.status === 'done' ? 'planned' : 'done', block)) };
     },
     onError: (_e, _v, ctx) => ctx?.undo(),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks }),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks() }),
   });
 }
 
 export function useCreateBlock() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (block: Block) => api.createBlock(block),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks }),
+    mutationFn: (block: Block) => getApi().createBlock(block),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks() }),
   });
 }
 
 export function useUpdateBlock() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<Omit<Block, 'id'>> }) => api.updateBlock(id, patch),
+    mutationFn: ({ id, patch }: { id: string; patch: Partial<Omit<Block, 'id'>> }) => getApi().updateBlock(id, patch),
     onMutate: async ({ id, patch }) => {
-      await qc.cancelQueries({ queryKey: keys.allBlocks });
+      await qc.cancelQueries({ queryKey: keys.allBlocks() });
       return { undo: patchCachedBlocks(qc, id, patch) };
     },
     onError: (_e, _v, ctx) => ctx?.undo(),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks }),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks() }),
   });
 }
 
 export function useDeleteBlock() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.deleteBlock(id),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks }),
+    mutationFn: (id: string) => getApi().deleteBlock(id),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks() }),
   });
 }
 
@@ -159,16 +174,16 @@ export function useDeleteBlock() {
 export function useApplyMove() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (plan: MovePlan) => api.applyMove(plan),
+    mutationFn: (plan: MovePlan) => getApi().applyMove(plan),
     onMutate: async (plan) => {
-      await qc.cancelQueries({ queryKey: keys.allBlocks });
+      await qc.cancelQueries({ queryKey: keys.allBlocks() });
       const undos = plan.blocks.map((c) => patchCachedBlocks(qc, c.id, { start: c.start, moved: c.moved }));
       return { undo: () => undos.reverse().forEach((u) => u()) };
     },
     onError: (_e, _v, ctx) => ctx?.undo(),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: keys.allBlocks });
-      qc.invalidateQueries({ queryKey: keys.targets });
+      qc.invalidateQueries({ queryKey: keys.allBlocks() });
+      qc.invalidateQueries({ queryKey: keys.targets() });
     },
   });
 }

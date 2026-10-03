@@ -3,6 +3,7 @@ import { Outlet, useMatches } from 'react-router';
 import { AppHeader } from './components/AppHeader';
 import { TabBar } from './components/TabBar';
 import { useAuth } from './data/auth';
+import { useDemoMode } from './data/index';
 import { useSettings, useSetup, useUpdateSettings } from './data/queries';
 import { SignInScreen } from './routes/auth/SignInScreen';
 import { useTheme } from './theme/ThemeProvider';
@@ -13,6 +14,7 @@ import { useTheme } from './theme/ThemeProvider';
  */
 export function App() {
   const auth = useAuth();
+  const demo = useDemoMode();
   const ready = auth.status === 'signedIn' || auth.status === 'demo';
   const setup = useSetup(ready);
   const matches = useMatches();
@@ -29,7 +31,8 @@ export function App() {
     <div className="min-h-dvh">
       <ThemeSync />
       <AppHeader subtitle={title} />
-      <main className="pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
+      {/* Keyed by mode: switching demo mode rebuilds every screen, so each reads from the new source. */}
+      <main key={demo ? 'demo' : 'real'} className="pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
         <Outlet />
       </main>
       <TabBar />
@@ -38,24 +41,32 @@ export function App() {
 }
 
 /**
- * Keeps the theme choice in your settings so it follows you across devices.
- * On load, the saved choice wins once; after that, changes you make are saved.
+ * Keeps the theme choice in your real settings so it follows you across devices.
+ * On first load the saved choice is applied once; after that, only changes you make are saved.
+ * Demo mode is skipped entirely: its sample settings never touch your theme.
  */
 function ThemeSync() {
   const { pref, setPref } = useTheme();
+  const demo = useDemoMode();
   const { data: settings } = useSettings();
   const update = useUpdateSettings();
   const adopted = useRef(false);
+  const lastSaved = useRef(pref);
 
+  // Apply the saved choice once, from real settings.
   useEffect(() => {
-    if (!settings) return;
-    if (!adopted.current) {
-      adopted.current = true;
-      if (settings.theme !== pref) setPref(settings.theme);
-      return;
-    }
-    if (settings.theme !== pref) update.mutate({ theme: pref });
-  }, [settings, pref]);
+    if (demo || !settings || adopted.current) return;
+    adopted.current = true;
+    lastSaved.current = settings.theme;
+    if (settings.theme !== pref) setPref(settings.theme);
+  }, [settings, demo]);
+
+  // Save when you change it (not when the server and this device merely disagree).
+  useEffect(() => {
+    if (demo || !adopted.current || pref === lastSaved.current) return;
+    lastSaved.current = pref;
+    update.mutate({ theme: pref });
+  }, [pref, demo]);
 
   return null;
 }

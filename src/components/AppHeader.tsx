@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { dataMode } from '../data/queries';
+import { useDemoMode } from '../data/index';
 import { SettingsSheet } from './SettingsSheet';
 import { ThemeToggle } from './ThemeToggle';
 
 /** Top bar: logo, CADENCE wordmark with the screen name, theme toggle, avatar (opens settings). */
 export function AppHeader({ subtitle }: { subtitle: string }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const demo = useDemoMode();
   return (
     <header className="pt-safe fixed inset-x-0 top-0 z-50 border-b border-border/60 bg-bg/85 backdrop-blur-xl">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-2 px-4">
@@ -17,13 +18,15 @@ export function AppHeader({ subtitle }: { subtitle: string }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {dataMode === 'demo' && (
-            <span
+          {demo && (
+            <button
+              type="button"
+              onClick={() => setSettingsOpen(true)}
               className="rounded-full bg-warn/15 px-2 py-0.5 text-label-sm font-semibold uppercase text-warn-ink"
-              title="Supabase is not connected. Changes are not saved."
+              title="Showing sample data. Your real data is untouched. Tap to change."
             >
-              Demo data
-            </span>
+              Demo
+            </button>
           )}
           <ThemeToggle />
           <button
