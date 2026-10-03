@@ -36,17 +36,14 @@ is set to `public`.
 **Why first:** the sign-in email contains a link back to the app. Supabase refuses to send you to an
 address it does not know, as protection against someone redirecting your login to their own site.
 
-1. Left sidebar: click **Authentication** (the icon of a person, or the word, depending on width).
-2. In Authentication's own menu, under **Configuration**, click **URL Configuration**.
-3. **Site URL** box: replace whatever is there (often `http://localhost:3000`) with your latest
-   Vercel preview link, for example `https://cadence-51fqv3pj2-novasolaris999s-projects.vercel.app`.
-   Click **Save**. (In phase 7 this becomes the production address.)
-4. **Redirect URLs** section: click **Add URL**, paste exactly:
-   `https://cadence-*-novasolaris999s-projects.vercel.app/**`
-   then **Save URLs**.
-   - The first `*` stands for the random part of each preview link, so every future preview works.
-   - `/**` allows any page inside the app.
-   - Do not use the broader `https://*.vercel.app/**`: that would let any Vercel site receive your login.
+**Authentication** > under **Configuration**, **URL Configuration**:
+- **Site URL**: `https://cadence-nova.vercel.app` (production, the installed app).
+- **Redirect URLs**, keep both:
+  - `https://cadence-nova.vercel.app/**` (production)
+  - `https://cadence-*-novasolaris999s-projects.vercel.app/**` (every preview link, used to test
+    each change before it reaches production; without it, signing in on a preview sends you to
+    production instead)
+  - Do not use the broader `https://*.vercel.app/**`: that would let any Vercel site receive your login.
 
 ## Part 4. Sign-in code in the email (optional, skip for now)
 

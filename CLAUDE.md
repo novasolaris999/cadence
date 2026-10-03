@@ -27,7 +27,9 @@ Cadence is a personal daily routine and goal tracker for one user.
 - Hand-written SVG for all charts. No chart library.
 - Vitest for unit tests of pure domain logic, plus `supabase/migrations.test.ts`, which applies every
   migration to PGlite (Postgres in WebAssembly) and checks row level security and constraints
-- Vercel hosting (GitHub repo connected; every branch push gets a preview URL, `main` is production)
+- Vercel hosting (GitHub repo connected; every branch push gets a preview URL, `main` is production).
+  Production address: **https://cadence-nova.vercel.app** (public; previews are behind Vercel login).
+  Supabase project ref: `chkcbhabkqwguykzdzaf`
 - Installable PWA via `vite-plugin-pwa` (manifest + Workbox service worker, auto-update). Icons are
   rendered from `scripts/app-icon.svg` by `scripts/gen-pwa-icons.mjs` (uses the container's Chromium)
 - Fonts self-hosted: Plus Jakarta Sans (headings, metrics), Inter (body, labels)
@@ -133,6 +135,7 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
 - Google sign-in: "Continue with Google" shows only when Google is enabled in Supabase (the app reads
   `/auth/v1/settings`). Email link stays as a fallback. The Google "G" mark uses Google's brand hex
   colors: the one allowed exception to the tokens-only color rule.
+- Google sign-in setup is deferred by the owner (code is ready; button stays hidden until enabled).
 - Sessions: Supabase refresh tokens do not expire on the free plan, so a sign-in lasts until sign-out or
   cleared site data. Each web address (preview vs production) keeps its own sign-in.
 - Demo mode (owner request): a switch in Settings, remembered per device. On: every read and write goes
