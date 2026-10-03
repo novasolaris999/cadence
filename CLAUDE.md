@@ -94,7 +94,7 @@ AI-generated suggestions, search, multiple users.
 - [x] Phase 1: Scaffold, tokens, theme toggle, four-tab shell, sample data, Vercel connected (awaiting owner review of the preview)
 - [x] Phase 2: Supabase schema, auth, RLS, target create/edit/archive (built; awaiting owner's Supabase setup and review)
 - [x] Phase 2.5 (owner approved, pulled forward from 7): installable PWA, Google sign-in, production on `main`
-- [x] Phase 3: Today against the database, including generating this week's blocks from targets (built; awaiting owner review, then publish to `main`)
+- [x] Phase 3: Today against the database, including generating this week's blocks from targets, daily toggle, NEW glow (approved and published to production)
 - [ ] Phase 4: Weekly on real data (drag between days, Re-run)
 - [ ] Phase 5: Goals history views
 - [ ] Phase 6: Insights
