@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { dataMode } from '../data/queries';
 import { SettingsSheet } from './SettingsSheet';
 import { ThemeToggle } from './ThemeToggle';
 
@@ -16,6 +17,14 @@ export function AppHeader({ subtitle }: { subtitle: string }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {dataMode === 'demo' && (
+            <span
+              className="rounded-full bg-warn/15 px-2 py-0.5 text-label-sm font-semibold uppercase text-warn-ink"
+              title="Supabase is not connected. Changes are not saved."
+            >
+              Demo data
+            </span>
+          )}
           <ThemeToggle />
           <button
             type="button"

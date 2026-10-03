@@ -95,7 +95,10 @@ export function TodayScreen() {
           showLate={showLate}
           onShowEarly={setShowEarly}
           onShowLate={setShowLate}
-          onToggle={(id) => toggle.mutate(id)}
+          onToggle={(id) => {
+            const block = blocks?.find((b) => b.id === id);
+            if (block) toggle.mutate({ block });
+          }}
           onOpen={(view) => setSheet({ kind: 'edit', view })}
           onAddAt={(start) => setSheet({ kind: 'add', date, start })}
           onDrop={requestMove}

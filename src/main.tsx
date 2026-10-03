@@ -5,6 +5,7 @@ import { RouterProvider } from 'react-router';
 import '@fontsource-variable/inter';
 import '@fontsource-variable/plus-jakarta-sans';
 import './styles/index.css';
+import { AuthProvider } from './data/auth';
 import { router } from './router';
 import { ThemeProvider } from './theme/ThemeProvider';
 
@@ -16,7 +17,9 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ThemeProvider>
       <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
   </StrictMode>,

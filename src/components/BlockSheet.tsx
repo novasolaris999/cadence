@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { useCategories, useCreateBlock, useDeleteBlock, useUpdateBlock } from '../data/queries';
+import { newId } from '../data/api';
+import { statusPatch, useCategories, useCreateBlock, useDeleteBlock, useUpdateBlock } from '../data/queries';
 import { formatDayShort, formatDuration, isoWeekday } from '../domain/time';
 import type { Block, BlockStatus, ISODate, Minutes } from '../domain/types';
 import type { BlockView } from './blockView';
@@ -59,7 +60,7 @@ function AddForm({ date, start: initialStart, onClose }: { date: ISODate; start:
     }
     create.mutate(
       {
-        id: `b-${Date.now()}`,
+        id: newId(),
         targetId: null,
         title: title.trim(),
         categoryId,
@@ -184,7 +185,7 @@ function EditForm({
           title: title.trim() || (target ? null : block.title),
           durationMin: duration,
           note: note.trim() || null,
-          status,
+          ...(status !== block.status ? statusPatch(status, block) : {}),
           // One-off blocks and finished blocks move directly; target blocks ask for a scope.
           ...(timeChanged && (!target || block.status !== 'planned') ? { start, moved: true } : {}),
         },

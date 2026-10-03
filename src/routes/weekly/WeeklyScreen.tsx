@@ -241,7 +241,10 @@ export function WeeklyScreen() {
               views={byDate.get(d) ?? []}
               allOnDay={(blocks ?? []).filter((b) => b.date === d)}
               onSelect={() => setSelected(d)}
-              onToggle={(id) => toggle.mutate(id)}
+              onToggle={(id) => {
+                const block = blocks?.find((b) => b.id === id);
+                if (block) toggle.mutate({ block });
+              }}
               onOpen={(view) => setSheet({ kind: 'edit', view })}
             />
           </div>

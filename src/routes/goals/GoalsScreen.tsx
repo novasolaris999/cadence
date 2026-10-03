@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { cx } from '../../components/cx';
 import { Icon } from '../../components/Icon';
@@ -44,9 +44,10 @@ export function GoalsScreen() {
   const delta = current.rate !== null && before.rate !== null ? Math.round((current.rate - before.rate) * 100) : null;
   const streak = overallStreak(linked(blocks.filter((b) => b.date <= now.today)), now.today);
 
-  const shown = targets.filter((t) => t.active || inPeriod.some((b) => b.targetId === t.id));
-  const active = shown.filter((t) => t.active);
-  const archived = shown.filter((t) => !t.active);
+  // Archived targets are always listed (folded away), so you can open and restore them.
+  const active = targets.filter((t) => t.active);
+  const archived = targets.filter((t) => !t.active);
+  const [showArchived, setShowArchived] = useState(false);
   const catById = new Map(categories.map((c) => [c.id, c]));
 
   const card = (t: (typeof targets)[number]) => (
@@ -138,14 +139,30 @@ export function GoalsScreen() {
 
         <GridLegend />
 
-        <div className="flex flex-col gap-3">{active.map(card)}</div>
+        {active.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-border px-4 py-8 text-center">
+            <Icon name="event_repeat" size={28} className="text-faint" />
+            <p className="text-body-md text-muted">No routines yet. Add the first thing you want to do every week.</p>
+            <Link to="/goals/new" className="mt-1 rounded-full bg-primary px-4 py-2 text-label-lg font-semibold text-on-primary">
+              New target
+            </Link>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">{active.map(card)}</div>
+        )}
 
         {archived.length > 0 && (
           <>
-            <h2 className="flex items-center gap-1.5 pt-2 text-label-md font-semibold uppercase tracking-wider text-faint">
-              <Icon name="archive" size={16} /> Archived
-            </h2>
-            <div className="flex flex-col gap-3">{archived.map(card)}</div>
+            <button
+              type="button"
+              onClick={() => setShowArchived((v) => !v)}
+              aria-expanded={showArchived}
+              className="flex items-center gap-1.5 pt-2 text-label-md font-semibold uppercase tracking-wider text-faint hover:text-muted"
+            >
+              <Icon name="archive" size={16} /> Archived ({archived.length})
+              <Icon name={showArchived ? 'keyboard_arrow_up' : 'keyboard_arrow_down'} size={16} />
+            </button>
+            {showArchived && <div className="flex flex-col gap-3">{archived.map(card)}</div>}
           </>
         )}
       </div>

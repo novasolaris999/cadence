@@ -1,4 +1,4 @@
-import { useAllBlocksOf, useApplyMove } from '../data/queries';
+import { useApplyMove, useTargetBlocks } from '../data/queries';
 import { planMove, siblingsInScope, type MoveScope } from '../domain/moves';
 import { formatDayShort, formatTime, weekdayShort } from '../domain/time';
 import type { Block, Minutes, Target } from '../domain/types';
@@ -16,7 +16,7 @@ export interface PendingMove {
  * One-off blocks never get here: they just move.
  */
 export function MoveScopeSheet({ pending, onDone }: { pending: PendingMove | null; onDone: () => void }) {
-  const { data: targetBlocks = [] } = useAllBlocksOf(pending?.target?.id ?? null);
+  const { data: targetBlocks = [] } = useTargetBlocks(pending?.target?.id ?? null, pending?.block.date ?? '');
   const apply = useApplyMove();
   if (!pending || !pending.target) return null;
   const { block, target, newStart } = pending;

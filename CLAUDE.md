@@ -18,14 +18,15 @@ Cadence is a personal daily routine and goal tracker for one user.
 
 ## Stack
 
-- React 18 + TypeScript (strict) + Vite
+- React 19 + TypeScript (strict) + Vite
 - Tailwind CSS, installed as a build dependency (never the CDN). Theme values come from CSS variables.
-- React Router for the four tabs and the goal detail route
+- React Router 8 for the four tabs and the goal detail route
 - TanStack Query for server state (caching, optimistic updates)
 - Supabase: Postgres, magic-link auth, row level security
 - dnd-kit for drag and drop
 - Hand-written SVG for all charts. No chart library.
-- Vitest for unit tests of pure domain logic
+- Vitest for unit tests of pure domain logic, plus `supabase/migrations.test.ts`, which applies every
+  migration to PGlite (Postgres in WebAssembly) and checks row level security and constraints
 - Vercel hosting (GitHub repo connected; every branch push gets a preview URL, `main` is production); PWA in phase 7
 - Fonts self-hosted: Plus Jakarta Sans (headings, metrics), Inter (body, labels)
 
@@ -34,8 +35,12 @@ Cadence is a personal daily routine and goal tracker for one user.
 - Never commit secrets or `.env` files. Only `.env.example` with empty values is committed.
 - Browser-side env vars (set in Vercel > Project > Settings > Environment Variables):
   - `VITE_SUPABASE_URL`
-  - `VITE_SUPABASE_ANON_KEY` (the publishable/anon key, never the service role / secret key)
-- The anon key is public by design. Security comes from row level security, not from hiding the key.
+  - `VITE_SUPABASE_PUBLISHABLE_KEY` (`sb_publishable_...`; never a secret / service role key).
+    `VITE_SUPABASE_ANON_KEY` is still read as a fallback.
+- The publishable key is public by design. Security comes from row level security, not from hiding it.
+- Without these vars the app runs on in-memory demo data (`src/data/sampleApi.ts`) and shows a
+  "Demo data" badge. This is how screenshot checks run in the build container.
+- One-time Supabase setup steps for the owner: `docs/supabase-setup.md`.
 
 ## Conventions
 
@@ -65,7 +70,9 @@ Cadence is a personal daily routine and goal tracker for one user.
 ### Code layout
 - `src/domain/` holds pure functions (scheduling rules, metrics, insights). No React, no Supabase.
   Every rule here has a unit test.
-- `src/data/` is the only folder that talks to Supabase.
+- `src/data/` is the only folder that talks to Supabase. Screens use the hooks in `src/data/queries.ts`,
+  which call `api` (`src/data/index.ts`): `supabaseApi` when configured, `sampleApi` otherwise. Both
+  implement `DataApi` (`src/data/api.ts`); add new storage operations to all three.
 - Screens live in `src/routes/<screen>/`. Shared UI lives in `src/components/`. SVG charts in `src/charts/`.
 
 ### Before every push
@@ -80,7 +87,7 @@ AI-generated suggestions, search, multiple users.
 
 - [x] Phase 0: SPEC.md and CLAUDE.md committed, mockups reviewed, plan approved
 - [x] Phase 1: Scaffold, tokens, theme toggle, four-tab shell, sample data, Vercel connected (awaiting owner review of the preview)
-- [ ] Phase 2: Supabase schema, auth, RLS, target create/edit/archive
+- [x] Phase 2: Supabase schema, auth, RLS, target create/edit/archive (built; awaiting owner's Supabase setup and review)
 - [ ] Phase 3: Today against the database
 - [ ] Phase 4: Weekly and block generation
 - [ ] Phase 5: Goals history views
@@ -106,11 +113,19 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
 - Out-of-scope mockup content is dropped: biometric sync, notification settings, search,
   suggested fixes / "apply slot adjustment", buffer slider, fluidity mode, volume tracking.
 - Mockup copy names ("Telemetry Engine", "Friction Detector") replaced with plain labels.
-- React 18 per SPEC. Consequence: React Router is pinned to v7 (v8 requires React 19).
+- React 19 (owner approved the switch from SPEC's React 18 before phase 2), with React Router 8.
 - Struggle rule: rate below 70% with at least 2 resolved occurrences, lowest first, max 3.
   Weekday cluster: >= 2 misses on that weekday and >= 50% of that weekday's occurrences missed,
   over the last 8 weeks.
 - Win rule: 100% with at least 2 hits in the range, or a current streak of 7+.
+- IDs are generated in the browser (`crypto.randomUUID()`), so new rows can appear instantly.
+- Archived targets always appear in a folded "Archived (n)" section on Goals, so they can be restored.
+- Category editing lives in the Settings sheet (avatar): tap the dot to recolor, edit the name in place,
+  tap delete twice. Default categories (Fitness, Health, People, Mind) are created on first sign-in.
+- Theme preference is saved in settings (follows you across devices) and cached in localStorage
+  (applied before first paint). On load the saved value wins once.
+- Sheets render through a portal on `document.body`: the header's backdrop blur would otherwise trap
+  fixed-position children.
 - Today edge toggles: subtle controls at the top and bottom of the timeline extend it to 00:00 / 24:00.
   Each is remembered per device (localStorage, not the database: it is a view preference). A coral dot
   on a collapsed toggle means the current time is hidden inside it.

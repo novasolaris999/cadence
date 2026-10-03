@@ -6,6 +6,7 @@ import { Icon, isIconName, type IconName } from '../../components/Icon';
 import { Page } from '../../components/Page';
 import { Toggle } from '../../components/Toggle';
 import { Chip, DURATIONS, Field, TimeInput } from '../../components/form';
+import { newId } from '../../data/api';
 import { useBlocks, useCategories, useSaveTarget, useTargets } from '../../data/queries';
 import { pct, tally, targetStreak } from '../../domain/metrics';
 import { targetDays } from '../../domain/schedule';
@@ -20,7 +21,7 @@ const ICONS: IconName[] = [
 const WEEKDAYS: Weekday[] = [1, 2, 3, 4, 5, 6, 7];
 
 const blank = (): Target => ({
-  id: `t-${Date.now()}`,
+  id: newId(),
   categoryId: null,
   name: '',
   description: null,

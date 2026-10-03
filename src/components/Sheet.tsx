@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './Icon';
 
 interface Props {
@@ -8,7 +9,10 @@ interface Props {
   children: ReactNode;
 }
 
-/** Bottom sheet on phones, centered dialog on wide screens. Escape or backdrop tap closes it. */
+/**
+ * Bottom sheet on phones, centered dialog on wide screens. Escape or backdrop tap closes it.
+ * Rendered at the end of <body> (a portal) so no parent's blur or transform can clip it.
+ */
 export function Sheet({ open, onClose, title, children }: Props) {
   useEffect(() => {
     if (!open) return;
@@ -18,7 +22,7 @@ export function Sheet({ open, onClose, title, children }: Props) {
   }, [open, onClose]);
 
   if (!open) return null;
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center">
       <button aria-label="Close" className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div
@@ -35,6 +39,7 @@ export function Sheet({ open, onClose, title, children }: Props) {
         </div>
         <div className="px-4 pb-6">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
