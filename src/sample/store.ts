@@ -1,4 +1,4 @@
-// In-memory stand-in for the database during phase 1. Changes last until you reload.
+// In-memory store behind Demo mode. Edits last until you reload; nothing is sent to Supabase.
 import type { Block, Category, DayLog, Routine, Settings, Target } from '../domain/types';
 import {
   buildSampleBlocks,

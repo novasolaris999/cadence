@@ -38,6 +38,7 @@
   --color-warn: var(--c-warn);
   --color-warn-ink: var(--c-warn-ink);
   --color-now: var(--c-now);
+  --color-on-now: var(--c-on-now);
   --color-cat-1: var(--c-cat-1);
   --color-cat-2: var(--c-cat-2);
   --color-cat-3: var(--c-cat-3);

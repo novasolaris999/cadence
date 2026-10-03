@@ -104,7 +104,7 @@ AI-generated suggestions, search, multiple users.
   migration 0002 (0002 applied by owner; approved and published to production)
 - [x] Phase 5: Goals history views: habit and routine history, routine grids on the Habits tab, paged reads (approved and published to production)
 - [x] Phase 6: Insights on real data: rolling windows, Routines section, Time/Done balance, honest empty states, editable on-time window (approved and published to production)
-- [ ] Phase 7: Polish and final production check (PWA and production already live since phase 2.5)
+- [x] Phase 7: Polish and final production check: accessibility (axe clean), security headers + CSP, offline copy and offline-safe saves, per-tab code loading (built; awaiting owner review, then publish to `main`)
 
 ## Decisions log
 
@@ -258,6 +258,25 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   (count of completed habits, so quick habits show). Empty states say what to do, and Struggles says "Not enough
   results yet" until some habit has 2 finished days, never a false all-clear. Settings falls back to defaults.
 - On-time window is editable in Settings (15 / 30 / 45 / 60 min; stored in `settings.on_time_tolerance_min`).
+
+- Accessibility (phase 7): axe-core reports zero violations on every screen in both themes. Text tokens were
+  darkened (light faint #636a7f, muted #525a6d, warn-ink #92400e; dark faint #8f96b0) to reach 4.5:1; never fade
+  text with opacity, use the muted token. Cards are containers, not buttons: an invisible `OpenOverlay` button is
+  the keyboard/screen-reader way to open them (pointer taps pass through), so check buttons are never nested in
+  a button. Charts carry an aria-label listing every value.
+- Security headers (vercel.json): CSP (scripts only from the app plus the index.html theme script pinned by SHA-256;
+  connect only to self and *.supabase.co; fonts self and data:; no framing), X-Frame-Options DENY, nosniff,
+  Referrer-Policy, Permissions-Policy. `tests/securityHeaders.test.ts` fails if the theme script changes without
+  its hash. Any new outside resource (a host, a font CDN) must be added to the CSP. Node-side tests live in
+  `tests/` (outside src, like supabase/migrations.test.ts).
+- Offline (phase 7): `src/data/offlineCache.ts` keeps a copy of recent real data in localStorage (settings,
+  categories, habits, routines, setup flag, blocks and logs for windows up to 3 weeks; never demo data; cleared on
+  sign-out; dropped after 30 days or when OFFLINE_CACHE_VERSION changes). Ticks, Complete all, and wake/sleep logs
+  are offline-safe saves (`OFFLINE_KEYS`, `registerOfflineSaves` in queries.ts): kept on the device while waiting
+  and sent on reconnect even after a restart, with the original tick time. Other edits wait in memory only. An
+  Offline banner explains what is happening. `onlineManager.setOnline(navigator.onLine)` at startup is required,
+  or saves restored while offline are sent, fail, and are lost.
+- Code loading: Today is in the main bundle; Weekly, Habits pages, and Insights load on first visit (router `lazy`).
 
 ## Visual check workflow
 

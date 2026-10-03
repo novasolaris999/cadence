@@ -1,4 +1,4 @@
-// Phase 1 placeholder data. Deleted once the app reads from Supabase (phase 2+).
+// Demo data (Settings > Demo mode, and the build container without Supabase).
 // Generated relative to the real current date, so "today", the now line, and history all look live.
 // Outcomes come from a seeded random generator, so every reload shows the same history.
 

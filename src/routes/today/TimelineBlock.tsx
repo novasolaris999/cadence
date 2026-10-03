@@ -4,6 +4,7 @@ import { cx } from '../../components/cx';
 import { catBg } from '../../components/categoryColor';
 import { Icon } from '../../components/Icon';
 import { NewBadge } from '../../components/NewBadge';
+import { OpenOverlay } from '../../components/OpenOverlay';
 import { CHECK_ROW_H, Pips, RoutineChecklist, RoutineIcon } from '../../components/RoutineParts';
 import type { BlockView } from '../../components/blockView';
 import { formatDuration, formatTimeRange } from '../../domain/time';
@@ -18,6 +19,8 @@ interface Props {
   onToggle: () => void;
   /** Ticks one habit inside a routine card. */
   onToggleId: (id: string) => void;
+  /** Opens the block (edit sheet) or routine (superset sheet). */
+  onOpen: () => void;
 }
 
 /**
@@ -26,22 +29,20 @@ interface Props {
  * 15 min = one line; 30-45 min = title and time; 60+ min = full card;
  * happening now = progress bar and a Complete button (today-dark.html).
  */
-export function TimelineBlock({ view, nowInBlock, missed, onToggle, onToggleId }: Props) {
-  if (view.group) return <RoutineBlock view={view} nowInBlock={nowInBlock} missed={missed} onToggleId={onToggleId} />;
+export function TimelineBlock({ view, nowInBlock, missed, onToggle, onToggleId, onOpen }: Props) {
+  if (view.group) return <RoutineBlock view={view} nowInBlock={nowInBlock} missed={missed} onToggleId={onToggleId} onOpen={onOpen} />;
   const { block, category, title } = view;
   const done = block.status === 'done';
   const skipped = block.status === 'skipped';
   const size = block.durationMin <= 15 ? 'xs' : block.durationMin < 60 ? 'md' : 'lg';
   const isNow = nowInBlock !== null && block.status === 'planned';
   const bar = <span className={cx('w-1.5 shrink-0 self-stretch rounded-full', catBg(category))} />;
-  const titleCls = cx(
-    'truncate text-text',
-    (done || skipped) && 'line-through opacity-60',
-  );
+  // Finished titles use the muted color rather than transparency, so they stay readable (4.5:1).
+  const titleCls = cx('truncate', done || skipped ? 'line-through text-muted' : 'text-text');
 
   if (size === 'xs') {
     return (
-      <Card isNow={isNow} isNew={view.isNew} className="items-center gap-2 px-2">
+      <Card label={view.title} onOpen={onOpen} isNow={isNow} isNew={view.isNew} className="items-center gap-2 px-2">
         <span className={cx('h-3.5 w-1.5 shrink-0 rounded-full', catBg(category))} />
         <span className={cx('flex-1 text-label-lg font-semibold', titleCls)}>{title}</span>
         {view.isNew && <NewBadge />}
@@ -54,7 +55,7 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle, onToggleId }
 
   if (size === 'md') {
     return (
-      <Card isNow={isNow} isNew={view.isNew} className="items-center gap-2 p-2">
+      <Card label={view.title} onOpen={onOpen} isNow={isNow} isNew={view.isNew} className="items-center gap-2 p-2">
         {bar}
         <div className="flex min-w-0 flex-1 flex-col">
           <span className={cx('text-label-lg font-semibold', titleCls)}>
@@ -79,7 +80,7 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle, onToggleId }
 
   const elapsed = isNow ? Math.min(block.durationMin, nowInBlock - block.start) : 0;
   return (
-    <Card isNow={isNow} isNew={view.isNew} className="flex-col justify-between gap-1 p-3">
+    <Card label={view.title} onOpen={onOpen} isNow={isNow} isNew={view.isNew} className="flex-col justify-between gap-1 p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 flex-col">
           {isNow ? (
@@ -94,7 +95,7 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle, onToggleId }
               {view.isNew && <NewBadge />}
             </span>
           )}
-          <h3 className={cx('mt-0.5 text-label-lg font-semibold', titleCls)}>{title}</h3>
+          <span className={cx('mt-0.5 text-label-lg font-semibold', titleCls)}>{title}</span>
           {block.note && <span className="truncate text-label-sm text-muted">{block.note}</span>}
         </div>
         {!isNow && <CheckButton status={block.status} onToggle={onToggle} title={title} />}
@@ -140,16 +141,31 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle, onToggleId }
   );
 }
 
-function Card({ isNow, isNew, className, children }: { isNow: boolean; isNew: boolean; className: string; children: ReactNode }) {
+function Card({
+  label,
+  onOpen,
+  isNow,
+  isNew,
+  className,
+  children,
+}: {
+  label: string;
+  onOpen: () => void;
+  isNow: boolean;
+  isNew: boolean;
+  className: string;
+  children: ReactNode;
+}) {
   return (
     <div
       className={cx(
-        'flex h-full w-full overflow-hidden rounded-lg shadow-card',
+        'relative flex h-full w-full overflow-hidden rounded-lg shadow-card',
         isNow ? 'bg-surface-2 ring-2 ring-primary/50' : 'bg-surface-3/70',
         isNew && 'glow-new',
         className,
       )}
     >
+      <OpenOverlay label={label} onOpen={onOpen} />
       {children}
     </div>
   );
@@ -170,18 +186,19 @@ function RoutineBlock({
   nowInBlock,
   missed,
   onToggleId,
-}: Pick<Props, 'view' | 'nowInBlock' | 'missed' | 'onToggleId'>) {
+  onOpen,
+}: Pick<Props, 'view' | 'nowInBlock' | 'missed' | 'onToggleId' | 'onOpen'>) {
   const { block, category, group } = view;
   const { routine, members, done } = group!;
   const isNow = nowInBlock !== null && block.status === 'planned';
   const allDone = done === members.length;
   return (
-    <Card isNow={isNow} isNew={view.isNew} className="relative flex-col gap-1 py-1.5 pr-2 pl-2.5 [--ring-bg:var(--c-surface-3)]">
+    <Card label={view.title} onOpen={onOpen} isNow={isNow} isNew={view.isNew} className="relative flex-col gap-1 py-1.5 pr-2 pl-2.5 [--ring-bg:var(--c-surface-3)]">
       {/* The left rail marks a routine: several habits in one card. */}
       <span className={cx('absolute inset-y-1.5 left-0 w-1 rounded-r-full', catBg(category))} aria-hidden />
       <div className="flex h-[26px] min-w-0 shrink-0 items-center gap-1.5">
         <RoutineIcon icon={routine.icon} category={category} size={22} />
-        <span className={cx('min-w-0 flex-1 truncate text-label-lg font-semibold text-text', allDone && 'opacity-60')}>
+        <span className={cx('min-w-0 flex-1 truncate text-label-lg font-semibold', allDone ? 'text-muted' : 'text-text')}>
           {routine.name}
           {view.protected && <Icon name="lock" size={12} className="ml-1 inline align-[-1px] text-faint" />}
           {view.isNew && (

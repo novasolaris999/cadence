@@ -196,12 +196,51 @@ export function useDayLogs(from: ISODate, to: ISODate) {
   return useQuery<DayLog[]>({ queryKey: keys.dayLogs(from, to), queryFn: () => getApi().listDayLogs(from, to) });
 }
 
-/** Saves wake or sleep time for one date. Shows instantly, saves in the background. */
+// ---------- Saves that survive being offline ----------
+// Ticking habits and logging wake/sleep are what you do with no signal. These saves carry everything
+// they need as plain data (including the time you ticked), so TanStack Query can keep a waiting one on
+// the device (see main.tsx) and send it when the connection returns, even after the app was closed.
+// `mode` is recorded so a change made in demo mode can never be sent to your real data, or the reverse.
+
+type Mode = 'supabase' | 'demo';
+interface BlockChanges {
+  mode: Mode;
+  changes: { id: string; patch: Partial<Omit<Block, 'id'>> }[];
+}
+interface DayLogSave {
+  mode: Mode;
+  log: DayLog;
+}
+export const OFFLINE_KEYS = { blocks: ['offline', 'blockChanges'], dayLog: ['offline', 'dayLog'] } as const;
+
+async function sendBlockChanges({ mode: m, changes }: BlockChanges) {
+  if (getApi().mode !== m) return;
+  for (const c of changes) await getApi().updateBlock(c.id, c.patch);
+}
+async function sendDayLog({ mode: m, log }: DayLogSave) {
+  if (getApi().mode !== m) return;
+  await getApi().saveDayLog(log);
+}
+
+/** How to send a waiting save that was restored from the device after a restart. */
+export function registerOfflineSaves(qc: QueryClient) {
+  qc.setMutationDefaults(OFFLINE_KEYS.blocks, {
+    mutationFn: sendBlockChanges,
+    onSettled: (_d, _e, v) => qc.invalidateQueries({ queryKey: [v.mode, 'blocks'] }),
+  });
+  qc.setMutationDefaults(OFFLINE_KEYS.dayLog, {
+    mutationFn: sendDayLog,
+    onSettled: (_d, _e, v) => qc.invalidateQueries({ queryKey: [v.mode, 'dayLogs'] }),
+  });
+}
+
+/** Saves wake or sleep time for one date. Shows instantly; saves now, or when back online. */
 export function useSaveDayLog() {
   const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (log: DayLog) => getApi().saveDayLog(log),
-    onMutate: async (log) => {
+  const m = useMutation({
+    mutationKey: OFFLINE_KEYS.dayLog,
+    mutationFn: sendDayLog,
+    onMutate: async ({ log }: DayLogSave) => {
       const key = [mode(), 'dayLogs'];
       await qc.cancelQueries({ queryKey: key });
       const before = qc.getQueriesData<DayLog[]>({ queryKey: key });
@@ -212,6 +251,23 @@ export function useSaveDayLog() {
     },
     onError: (_e, _v, ctx) => ctx?.undo(),
     onSettled: () => qc.invalidateQueries({ queryKey: [mode(), 'dayLogs'] }),
+  });
+  return { ...m, mutate: (log: DayLog) => m.mutate({ mode: mode(), log }) };
+}
+
+/** Block status changes (tick, Complete all): shown at once, saved now or when back online. */
+function useBlockChanges() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationKey: OFFLINE_KEYS.blocks,
+    mutationFn: sendBlockChanges,
+    onMutate: async ({ changes }: BlockChanges) => {
+      await qc.cancelQueries({ queryKey: keys.allBlocks() });
+      const undos = changes.map((c) => patchCachedBlocks(qc, c.id, c.patch));
+      return { undo: () => undos.reverse().forEach((u) => u()) };
+    },
+    onError: (_e, _v, ctx) => ctx?.undo(),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks() }),
   });
 }
 
@@ -232,16 +288,12 @@ export function statusPatch(status: Block['status'], current: Block): Partial<Bl
 
 /** One-tap complete: planned or skipped -> done, done -> planned. The check appears instantly. */
 export function useToggleBlockDone() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ block }: { block: Block }) => getApi().updateBlock(block.id, statusPatch(block.status === 'done' ? 'planned' : 'done', block)),
-    onMutate: async ({ block }) => {
-      await qc.cancelQueries({ queryKey: keys.allBlocks() });
-      return { undo: patchCachedBlocks(qc, block.id, statusPatch(block.status === 'done' ? 'planned' : 'done', block)) };
-    },
-    onError: (_e, _v, ctx) => ctx?.undo(),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks() }),
-  });
+  const m = useBlockChanges();
+  return {
+    ...m,
+    mutate: ({ block }: { block: Block }) =>
+      m.mutate({ mode: mode(), changes: [{ id: block.id, patch: statusPatch(block.status === 'done' ? 'planned' : 'done', block) }] }),
+  };
 }
 
 export function useCreateBlock() {
@@ -344,17 +396,13 @@ export function useApplyGroupDayMove() {
 
 /** Sets several blocks to one status at once (a routine's "Complete all"). Shows at once. */
 export function useSetBlocksStatus() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ blocks, status }: { blocks: Block[]; status: Block['status'] }) => {
-      for (const b of blocks) if (b.status !== status) await getApi().updateBlock(b.id, statusPatch(status, b));
-    },
-    onMutate: async ({ blocks, status }) => {
-      await qc.cancelQueries({ queryKey: keys.allBlocks() });
-      const undos = blocks.filter((b) => b.status !== status).map((b) => patchCachedBlocks(qc, b.id, statusPatch(status, b)));
-      return { undo: () => undos.reverse().forEach((u) => u()) };
-    },
-    onError: (_e, _v, ctx) => ctx?.undo(),
-    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks() }),
-  });
+  const m = useBlockChanges();
+  return {
+    ...m,
+    mutate: ({ blocks, status }: { blocks: Block[]; status: Block['status'] }) =>
+      m.mutate({
+        mode: mode(),
+        changes: blocks.filter((b) => b.status !== status).map((b) => ({ id: b.id, patch: statusPatch(status, b) })),
+      }),
+  };
 }

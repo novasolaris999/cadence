@@ -3,6 +3,7 @@ import { cx } from '../../components/cx';
 import { catBg, catSoft } from '../../components/categoryColor';
 import { Icon } from '../../components/Icon';
 import { NewBadge } from '../../components/NewBadge';
+import { OpenOverlay } from '../../components/OpenOverlay';
 import { Pips, RoutineChecklist, RoutineIcon } from '../../components/RoutineParts';
 import { habitLength, isAnytime } from '../../domain/routines';
 import type { BlockView } from '../../components/blockView';
@@ -36,16 +37,14 @@ export function WeeklyCard({
   const end = formatTime(block.start + block.durationMin);
   return (
     <div
-      role="button"
-      tabIndex={0}
       onClick={onOpen}
-      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen()}
       className={cx(
         'relative flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-surface p-2.5 shadow-card transition-colors hover:border-faint md:block md:p-2 md:pr-7 xl:flex xl:p-2.5 xl:pr-2.5',
         view.isNew && 'glow-new',
       )}
     >
-      <span className="md:absolute md:top-0.5 md:right-0.5 xl:static">
+      <OpenOverlay label={title} onOpen={onOpen} />
+      <span className="relative md:absolute md:top-0.5 md:right-0.5 xl:static">
         <CheckButton status={block.status} onToggle={onToggle} title={title} />
       </span>
       <div className="flex min-w-0 flex-1 flex-col">
@@ -107,15 +106,13 @@ function RoutineWeeklyCard({
   const allDone = done === members.length;
   return (
     <div
-      role="button"
-      tabIndex={0}
       onClick={onOpen}
-      onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen()}
       className={cx(
         'relative flex cursor-pointer flex-col gap-1.5 overflow-hidden rounded-xl border border-border bg-surface p-2.5 pl-3 shadow-card transition-colors hover:border-faint md:p-2 md:pl-2.5 [--ring-bg:var(--c-surface)]',
         view.isNew && 'glow-new',
       )}
     >
+      <OpenOverlay label={routine.name} onOpen={onOpen} />
       <span className={cx('absolute inset-y-0 left-0 w-1', catBg(category))} aria-hidden />
       {/* Narrow columns (768px+) give the name its own line; phones keep one row with progress pips. */}
       <div className="flex min-w-0 items-start gap-2">

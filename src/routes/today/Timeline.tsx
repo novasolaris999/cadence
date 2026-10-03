@@ -253,6 +253,7 @@ export function Timeline(props: Props) {
                   missed={past && v.block.status === 'planned'}
                   onToggle={() => props.onToggle(v.block.id)}
                   onToggleId={props.onToggle}
+                  onOpen={() => openBlock(v)}
                 />
               </DraggableBlock>
             );
@@ -267,7 +268,7 @@ export function Timeline(props: Props) {
               <span className="font-mono text-label-sm font-bold text-now">{formatTime(nowInSpan)}</span>
               <div className="relative flex h-0.5 items-center bg-now">
                 <span className="absolute -left-1.5 h-3 w-3 rounded-full bg-now" />
-                <span className="ml-auto rounded-full bg-now px-1.5 font-mono text-[10px] font-semibold text-white">NOW</span>
+                <span className="ml-auto rounded-full bg-now px-1.5 font-mono text-[10px] font-semibold text-on-now">NOW</span>
               </div>
             </div>
           )}
@@ -319,7 +320,7 @@ function Rows({
             <span
               className={cx(
                 'font-mono text-label-sm',
-                m % 60 === 0 ? 'text-text' : 'text-faint/70',
+                m % 60 === 0 ? 'text-text' : 'text-faint',
                 nowInSpan !== null && Math.abs(nowInSpan - (m + SLOT / 2)) < 12 && 'invisible',
               )}
             >
@@ -358,6 +359,10 @@ function DraggableBlock({
       ref={setNodeRef}
       {...listeners}
       {...attributes}
+      // A container, not a button: it holds its own buttons (open, check). Opening by keyboard goes
+      // through the card's OpenOverlay; dragging is by touch or mouse.
+      role="group"
+      tabIndex={undefined}
       aria-roledescription="Draggable block. Press and hold to move."
       onClick={(e) => {
         e.stopPropagation();

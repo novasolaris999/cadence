@@ -19,8 +19,8 @@
   --c-sunken: #f5f6fc;
   --c-border: #e2e6f0;
   --c-text: #131b2e;
-  --c-text-muted: #5b6478;
-  --c-text-faint: #8a92a6;
+  --c-text-muted: #525a6d;
+  --c-text-faint: #636a7f; /* 4.5:1 or better on every light surface (axe audit, phase 7) */
 
   /* Brand */
   --c-primary: #4f46e5;
@@ -33,8 +33,9 @@
   --c-miss: #f43f5e;
   --c-miss-ink: #be123c;
   --c-warn: #f59e0b;
-  --c-warn-ink: #b45309;
-  --c-now: #f43f5e;
+  --c-warn-ink: #92400e;
+  --c-now: #e11d48;
+  --c-on-now: #ffffff;
 
   /* Category palette. categories.color stores the key (cat-1 ... cat-8). */
   --c-cat-1: #10b981; /* emerald */
@@ -61,7 +62,7 @@
   --c-border: #222a3d;
   --c-text: #dae2fd;
   --c-text-muted: #b4bbd3;
-  --c-text-faint: #7f86a0;
+  --c-text-faint: #8f96b0; /* 4.5:1 or better on every dark surface */
 
   --c-primary: #c0c1ff;
   --c-on-primary: #1000a9;
@@ -74,6 +75,7 @@
   --c-warn: #fbbf24;
   --c-warn-ink: #fcd34d;
   --c-now: #ff516a;
+  --c-on-now: #2a0008;
 
   --c-cat-1: #4edea3;
   --c-cat-2: #8083ff;

@@ -40,7 +40,7 @@ export function RateBars({ items, initial, label }: { items: RateBar[]; initial?
           {cur?.rate === null || cur === undefined ? '–' : `${Math.round(cur.rate * 100)}%`}
         </span>
       </figcaption>
-      <svg viewBox={`0 0 ${W} ${H + 1}`} className="h-[72px] w-full overflow-visible" preserveAspectRatio="none" role="img">
+      <svg viewBox={`0 0 ${W} ${H + 1}`} className="h-[72px] w-full overflow-visible" preserveAspectRatio="none" role="img" aria-label={`${label}: ${items.map((it) => `${it.label} ${it.rate === null ? 'none' : `${Math.round(it.rate * 100)}%`}`).join(', ')}`}>
         {/* 50% and 100% guides, recessive */}
         <line x1={0} x2={W} y1={H / 2} y2={H / 2} stroke="var(--c-border)" strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />
         <line x1={0} x2={W} y1={0} y2={0} stroke="var(--c-border)" strokeDasharray="2 3" vectorEffect="non-scaling-stroke" />

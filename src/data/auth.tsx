@@ -1,6 +1,7 @@
 // Sign-in state. With Supabase configured you sign in by email (a magic link, or the 6-digit
 // code from the same email). Without it the app runs on demo data and skips sign-in.
 
+import { clearOfflineCache } from './offlineCache';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from './supabase';
@@ -81,4 +82,6 @@ export async function signInWithGoogle() {
 
 export async function signOut() {
   await supabase?.auth.signOut();
+  // Nothing personal stays on the device after signing out.
+  clearOfflineCache();
 }

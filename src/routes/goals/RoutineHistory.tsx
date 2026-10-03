@@ -97,7 +97,7 @@ export function RoutineHistory({
             </>
           }
         >
-          <span className="text-muted">days, nothing missed</span>
+          <span className="text-muted">no-miss days</span>
         </StatTile>
         <StatTile
           label="Change"

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Outlet, useMatches } from 'react-router';
 import { AppHeader } from './components/AppHeader';
+import { OfflineBanner, useOnline } from './components/OfflineBanner';
 import { TabBar } from './components/TabBar';
 import { Toaster } from './components/Toaster';
 import { useAuth } from './data/auth';
@@ -18,6 +19,7 @@ export function App() {
   const demo = useDemoMode();
   const ready = auth.status === 'signedIn' || auth.status === 'demo';
   const setup = useSetup(ready);
+  const online = useOnline();
   const matches = useMatches();
   const title =
     [...matches].reverse().map((m) => (m.handle as { title?: string } | undefined)?.title).find(Boolean) ??
@@ -26,6 +28,9 @@ export function App() {
   if (auth.status === 'loading') return <Splash />;
   if (auth.status === 'signedOut') return <SignInScreen />;
   if (setup.isError) return <Splash message={`Could not load your data: ${setup.error.message}`} onRetry={() => setup.refetch()} />;
+  // First open on this device with no connection: nothing saved to show yet, so say so instead of waiting.
+  if (!setup.data && !online)
+    return <Splash message="You are offline. Cadence needs a connection the first time it opens on this device." />;
   if (!setup.data) return <Splash />;
 
   return (
@@ -34,6 +39,7 @@ export function App() {
       <AppHeader subtitle={title} />
       {/* Keyed by mode: switching demo mode rebuilds every screen, so each reads from the new source. */}
       <main key={demo ? 'demo' : 'real'} className="pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
+        <OfflineBanner />
         <Outlet />
       </main>
       <TabBar />

@@ -23,7 +23,9 @@ function Form({ target, onClose }: { target: DayLogTarget; onClose: () => void }
   const [value, setValue] = useState(formatTime(current ?? minutesOfDay()));
   const base: DayLog = target.existing ?? { date: target.date, wake: null, sleep: null };
   const write = (m: number | null) =>
-    save.mutate({ ...base, [target.kind]: m }, { onSuccess: onClose });
+    // Close at once: the time shows instantly and saves now, or when back online.
+    save.mutate({ ...base, [target.kind]: m });
+    onClose();
 
   const title = target.kind === 'wake' ? 'Woke up' : 'Went to sleep';
   const subtitle =
