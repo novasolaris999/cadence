@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+
+<html lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><meta content="mobile_tab" name="shell-type"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;background-color:#FAF8FF;color:#0F172A;}body{overscroll-behavior:none;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script><script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "primary-fixed": "#e2dfff",
+          "on-primary": "#ffffff",
+          "error": "#ba1a1a",
+          "surface-container-lowest": "#ffffff",
+          "surface-tint": "#4d44e3",
+          "on-secondary-container": "#00714d",
+          "surface-variant": "#dae2fd",
+          "on-surface": "#0F172A",
+          "background": "#faf8ff",
+          "inverse-surface": "#283044",
+          "on-primary-fixed-variant": "#3323cc",
+          "on-tertiary-container": "#ffd4a4",
+          "primary": "#3525cd",
+          "surface-dim": "#d2d9f4",
+          "on-primary-fixed": "#0f0069",
+          "on-error-container": "#93000a",
+          "inverse-primary": "#c3c0ff",
+          "on-tertiary": "#ffffff",
+          "tertiary": "#684000",
+          "secondary-container": "#6cf8bb",
+          "surface-bright": "#faf8ff",
+          "error-container": "#ffdad6",
+          "secondary-fixed": "#6ffbbe",
+          "outline": "#777587",
+          "surface-container-highest": "#e2e8f0",
+          "surface-container": "#ffffff",
+          "on-background": "#0F172A",
+          "surface-container-high": "#f1f5f9",
+          "tertiary-fixed": "#ffddb8",
+          "secondary-fixed-dim": "#4edea3",
+          "surface": "#faf8ff",
+          "tertiary-container": "#885500",
+          "primary-fixed-dim": "#c3c0ff",
+          "surface-container-low": "#f8fafc",
+          "on-secondary": "#ffffff",
+          "on-tertiary-fixed-variant": "#653e00",
+          "tertiary-fixed-dim": "#ffb95f",
+          "primary-container": "#4f46e5",
+          "on-secondary-fixed-variant": "#005236",
+          "on-tertiary-fixed": "#2a1700",
+          "outline-variant": "#e2e8f0",
+          "secondary": "#00875a",
+          "on-primary-container": "#dad7ff",
+          "on-error": "#ffffff",
+          "on-secondary-fixed": "#002113",
+          "inverse-on-surface": "#eef0ff",
+          "on-surface-variant": "#64748B"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "space-xl": "2rem",
+          "margin-mobile": "1.25rem",
+          "space-sm": "0.5rem",
+          "space-xs": "0.25rem",
+          "space-md": "1rem",
+          "margin": "1rem",
+          "gutter": "0.75rem",
+          "gutter-mobile": "1rem",
+          "space-lg": "1.25rem"
+        },
+        "fontFamily": {
+          "headline-sm": ["Plus Jakarta Sans"],
+          "body-sm": ["Plus Jakarta Sans"],
+          "display-hero": ["Plus Jakarta Sans"],
+          "metric-num": ["Plus Jakarta Sans"],
+          "body-lg": ["Plus Jakarta Sans"],
+          "body-md": ["Plus Jakarta Sans"],
+          "label-md": ["Plus Jakarta Sans"],
+          "label-caps": ["Plus Jakarta Sans"],
+          "display-hero-mobile": ["Plus Jakarta Sans"],
+          "headline-lg": ["Plus Jakarta Sans"],
+          "headline-md": ["Plus Jakarta Sans"],
+          "label-lg": ["Plus Jakarta Sans"]
+        },
+        "fontSize": {
+          "headline-sm": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+          "body-sm": ["12px", { "lineHeight": "16px", "letterSpacing": "0em", "fontWeight": "400" }],
+          "display-hero": ["44px", { "lineHeight": "52px", "letterSpacing": "-0.03em", "fontWeight": "800" }],
+          "metric-num": ["28px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+          "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "-0.005em", "fontWeight": "400" }],
+          "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0em", "fontWeight": "400" }],
+          "label-md": ["12px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+          "label-caps": ["11px", { "lineHeight": "14px", "letterSpacing": "0.06em", "fontWeight": "700" }],
+          "display-hero-mobile": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.025em", "fontWeight": "800" }],
+          "headline-lg": ["24px", { "lineHeight": "30px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+          "headline-md": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.015em", "fontWeight": "600" }],
+          "label-lg": ["13px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "600" }]
+        }
+      },
+    },
+  }
+</script><style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+</head><body class="bg-background font-body-md text-body-md text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 pt-safe bg-white/90 backdrop-blur-xl border-b border-slate-200/80 shadow-sm"><div class="h-16 px-margin flex items-center justify-between"><div class="flex items-center gap-space-sm"><img alt="Cadence Logo" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1WaGS-XT90swFEuHnmd9A-JidHUw7HjVVSLYz4B3ZGWctlY5r6eyzpcZwYgoH55piESYTwAYVwmEjCuwRf50Ztq4qTPyiu7NvmuVeNyt7SoK_1mmAQpe2Aq9Th4dXb_17MgSbl_1ne8q3t0-6mADUmjkBzcxPNl9vhBChBH0LdLVRdJ6nuH4UsiX8WrvYZJafip5R0tTbZhtEtVQT8G7mIrlPwHGA-ajw6J5lBi8bOiJGfbaj-_mVefy_c"/><div class="flex flex-col"><span class="font-label-caps text-label-caps uppercase tracking-wider text-secondary font-bold">Cadence OS</span><span class="font-headline-md text-headline-md text-slate-900 leading-tight">Insights</span></div></div><div class="flex items-center gap-space-sm"><button aria-label="Quick search" class="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"><span class="material-symbols-outlined text-[20px]">search</span></button><div class="p-[2px] rounded-full ring-2 ring-indigo-100"><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1VlNP_xi_RB8G680nsWd6WPI-IfiZSdislaUOMA0Rq3KJsX48G3FLsMxUgneejVPy4MK4al0LAFpyXbaIiiBvhfy9Ft4Q6G4iDHkuwkKiwKzzy1HaXQ2886o9aeoKvkMs-nPtxmdqGf1yu7_5J1D9n8i8w9Pra_TL3nBOUuJEl99VbnWwzvjnCeXPKnY9JdIUJ6rBxyyVDs1cvtcZcfMcoD-kwdsxGvi-JhUCzX8L0AQBLiekzOO8TQyw"/></div></div></div></header><main class="flex flex-col relative w-full pt-16 pb-24 bg-background min-h-screen"><div class="flex flex-col w-full px-margin space-y-space-lg pb-space-xl">
+<!-- Period Switcher & Header Sub-label -->
+<section class="flex flex-col gap-space-sm pt-space-md">
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-caps text-label-caps uppercase tracking-wider text-emerald-700 font-bold">Weekly Telemetry</span>
+<span class="font-headline-lg text-headline-lg text-slate-900">Cadence Diagnosis</span>
+</div>
+<div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200">
+<span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
+<span class="font-label-md text-label-md text-emerald-800 font-medium">Synced 14m ago</span>
+</div>
+</div>
+<!-- Segmented Control Pill -->
+<div class="grid grid-cols-2 p-1 rounded-full bg-slate-200/80 mt-space-xs" role="tablist">
+<button aria-selected="true" class="py-2 rounded-full font-label-lg text-label-lg transition-all duration-200 bg-primary text-white shadow-sm text-center font-semibold" role="tab" type="button">
+        This Week
+      </button>
+<button aria-selected="false" class="py-2 rounded-full font-label-lg text-label-lg transition-all duration-200 text-slate-600 hover:text-slate-900 text-center font-medium" role="tab" type="button">
+        This Month
+      </button>
+</div>
+</section>
+<!-- Section 1: Circadian Rhythm & Consistency -->
+<section class="flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[20px] text-primary" style="font-variation-settings: 'FILL' 1;">bedtime</span>
+<h2 class="font-headline-md text-headline-md text-slate-900">Circadian Rhythm &amp; Consistency</h2>
+</div>
+<span class="font-label-md text-label-md text-emerald-700 bg-emerald-50 border border-emerald-200 px-space-sm py-0.5 rounded-full font-semibold">Optimal Window</span>
+</div>
+<!-- Dual Metric Cards -->
+<div class="grid grid-cols-2 gap-gutter">
+<!-- On-Time Wakeup Card -->
+<div class="flex flex-col justify-between p-space-md rounded-xl bg-white border border-slate-200 shadow-sm relative overflow-hidden">
+<div class="flex items-start justify-between">
+<div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700">
+<span class="material-symbols-outlined text-[18px]">wb_sunny</span>
+</div>
+<span class="font-label-md text-label-md text-emerald-700 bg-emerald-50 border border-emerald-200 px-space-xs py-[2px] rounded-full flex items-center gap-0.5 font-semibold">
+<span class="material-symbols-outlined text-[12px]">arrow_upward</span>+12%
+          </span>
+</div>
+<div class="mt-space-md">
+<span class="font-label-caps text-label-caps text-slate-500 block uppercase">On-Time Wakeup</span>
+<div class="flex items-baseline gap-1.5 mt-0.5">
+<span class="font-metric-num text-metric-num text-slate-900">86%</span>
+<span class="font-body-sm text-body-sm text-slate-500 font-medium">6 / 7 d</span>
+</div>
+<p class="font-body-sm text-body-sm text-slate-500 mt-1">Anchor: <span class="text-slate-900 font-semibold">07:00 AM</span></p>
+</div>
+</div>
+<!-- On-Time Sleep Card -->
+<div class="flex flex-col justify-between p-space-md rounded-xl bg-white border border-slate-200 shadow-sm relative overflow-hidden">
+<div class="flex items-start justify-between">
+<div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]">nights_stay</span>
+</div>
+<span class="font-label-md text-label-md text-indigo-700 bg-indigo-50 border border-indigo-200 px-space-xs py-[2px] rounded-full font-semibold">
+            Regular
+          </span>
+</div>
+<div class="mt-space-md">
+<span class="font-label-caps text-label-caps text-slate-500 block uppercase">On-Time Sleep</span>
+<div class="flex items-baseline gap-1.5 mt-0.5">
+<span class="font-metric-num text-metric-num text-slate-900">71%</span>
+<span class="font-body-sm text-body-sm text-slate-500 font-medium">5 / 7 d</span>
+</div>
+<p class="font-body-sm text-body-sm text-slate-500 mt-1">Anchor: <span class="text-slate-900 font-semibold">23:00 PM</span></p>
+</div>
+</div>
+</div>
+<!-- Sleep Regularity Graph Mon-Sun -->
+<div class="p-space-md rounded-xl bg-white border border-slate-200 shadow-sm flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg text-slate-900 font-semibold">7-Day Regularity Corridor</span>
+<span class="font-body-sm text-body-sm text-slate-500">Target variance &lt; 35m</span>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
+<span class="font-label-md text-label-md text-slate-600 font-medium">Sleep</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
+<span class="font-label-md text-label-md text-slate-600 font-medium">Wake</span>
+</div>
+</div>
+</div>
+<!-- SVG Chart Canvas -->
+<div class="w-full pt-space-xs">
+<svg class="w-full h-24 overflow-visible" preserveaspectratio="none" viewbox="0 0 320 110">
+<!-- Background target corridor band -->
+<rect class="text-indigo-50/70" fill="currentColor" height="62" rx="6" width="320" x="0" y="24"></rect>
+<!-- Grid lines -->
+<line class="text-slate-300" stroke="currentColor" stroke-dasharray="2 3" stroke-width="1" x1="0" x2="320" y1="24" y2="24"></line>
+<line class="text-slate-300" stroke="currentColor" stroke-dasharray="2 3" stroke-width="1" x1="0" x2="320" y1="86" y2="86"></line>
+<!-- Day Columns -->
+<!-- Mon -->
+<g>
+<rect class="fill-indigo-500" height="54" rx="4" width="8" x="18" y="28"></rect>
+<circle class="fill-emerald-500 stroke-white stroke-2" cx="22" cy="28" r="4.5"></circle>
+<circle class="fill-indigo-600 stroke-white stroke-2" cx="22" cy="82" r="4.5"></circle>
+<text class="fill-slate-600 font-semibold" font-size="10" text-anchor="middle" x="22" y="104">M</text>
+</g>
+<!-- Tue -->
+<g>
+<rect class="fill-indigo-500" height="58" rx="4" width="8" x="64" y="26"></rect>
+<circle class="fill-emerald-500 stroke-white stroke-2" cx="68" cy="26" r="4.5"></circle>
+<circle class="fill-indigo-600 stroke-white stroke-2" cx="68" cy="84" r="4.5"></circle>
+<text class="fill-slate-600 font-semibold" font-size="10" text-anchor="middle" x="68" y="104">T</text>
+</g>
+<!-- Wed -->
+<g>
+<rect class="fill-indigo-500" height="60" rx="4" width="8" x="110" y="24"></rect>
+<circle class="fill-emerald-500 stroke-white stroke-2" cx="114" cy="24" r="4.5"></circle>
+<circle class="fill-indigo-600 stroke-white stroke-2" cx="114" cy="84" r="4.5"></circle>
+<text class="fill-slate-600 font-semibold" font-size="10" text-anchor="middle" x="114" y="104">W</text>
+</g>
+<!-- Thu (Slight Late Sleep) -->
+<g>
+<rect class="fill-indigo-400" height="66" rx="4" width="8" x="156" y="26"></rect>
+<circle class="fill-emerald-500 stroke-white stroke-2" cx="160" cy="26" r="4.5"></circle>
+<circle class="fill-amber-500 stroke-white stroke-2" cx="160" cy="92" r="4.5"></circle>
+<text class="fill-slate-600 font-semibold" font-size="10" text-anchor="middle" x="160" y="104">T</text>
+</g>
+<!-- Fri -->
+<g>
+<rect class="fill-indigo-500" height="58" rx="4" width="8" x="202" y="24"></rect>
+<circle class="fill-emerald-500 stroke-white stroke-2" cx="206" cy="24" r="4.5"></circle>
+<circle class="fill-indigo-600 stroke-white stroke-2" cx="206" cy="82" r="4.5"></circle>
+<text class="fill-slate-600 font-semibold" font-size="10" text-anchor="middle" x="206" y="104">F</text>
+</g>
+<!-- Sat (Gym Night Distortion) -->
+<g>
+<rect class="fill-rose-300" height="58" rx="4" width="8" x="248" y="38"></rect>
+<circle class="fill-rose-500 stroke-white stroke-2" cx="252" cy="38" r="4.5"></circle>
+<circle class="fill-rose-500 stroke-white stroke-2" cx="252" cy="96" r="4.5"></circle>
+<text class="fill-rose-600 font-bold" font-size="10" text-anchor="middle" x="252" y="104">S</text>
+</g>
+<!-- Sun -->
+<g>
+<rect class="fill-indigo-500" height="58" rx="4" width="8" x="294" y="26"></rect>
+<circle class="fill-emerald-500 stroke-white stroke-2" cx="298" cy="26" r="4.5"></circle>
+<circle class="fill-indigo-600 stroke-white stroke-2" cx="298" cy="84" r="4.5"></circle>
+<text class="fill-slate-600 font-semibold" font-size="10" text-anchor="middle" x="298" y="104">S</text>
+</g>
+</svg>
+</div>
+<div class="flex items-center justify-between pt-space-xs text-slate-600 font-label-md text-label-md">
+<span class="flex items-center gap-1 font-medium text-emerald-700">
+<span class="material-symbols-outlined text-[16px] text-emerald-600">verified</span>
+          Corridor Drift: ±18 min
+        </span>
+<span class="text-rose-600 font-medium">1 late night anomaly (Sat)</span>
+</div>
+</div>
+</section>
+<!-- Section 2: Goal Struggle & Friction Detector (Core Diagnostic Section) -->
+<section class="flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[20px] text-amber-600" style="font-variation-settings: 'FILL' 1;">troubleshoot</span>
+<h2 class="font-headline-md text-headline-md text-slate-900">Goal Struggle &amp; Friction Detector</h2>
+</div>
+<span class="font-label-md text-label-md text-rose-700 bg-rose-50 border border-rose-200 px-space-sm py-0.5 rounded-full font-semibold">2 Alerts</span>
+</div>
+<!-- Diagnostic Cards with Tactical Context -->
+<div class="flex flex-col gap-space-sm">
+<!-- Friction Card 1: Journaling & Reflection (Light Warm Amber/Coral Tint) -->
+<div class="p-space-md rounded-xl bg-[#FFF8F5] border border-amber-200/80 shadow-sm flex flex-col gap-space-sm relative overflow-hidden">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-rose-600"></span>
+<span class="font-label-caps text-label-caps uppercase font-bold text-rose-700">Attention Needed</span>
+</div>
+<span class="font-label-md text-label-md text-rose-800 bg-rose-100/70 border border-rose-200 px-space-xs py-0.5 rounded-full font-medium">3 / 7 Completed (43%)</span>
+</div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-white border border-amber-200 flex items-center justify-center text-primary shadow-xs">
+<span class="material-symbols-outlined text-[20px]">edit_note</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-slate-900 leading-snug">Journaling &amp; Reflection</h3>
+<p class="font-body-sm text-body-sm text-slate-600">Nightly debrief routine</p>
+</div>
+</div>
+</div>
+<!-- Metric bar indicator -->
+<div class="w-full bg-amber-100 h-1.5 rounded-full overflow-hidden">
+<div class="bg-amber-600 h-full rounded-full" style="width: 43%;"></div>
+</div>
+<!-- Friction Breakdown Box -->
+<div class="p-space-sm rounded-lg bg-white border border-amber-200/70 flex flex-col gap-space-xs shadow-xs">
+<div class="flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-amber-700 mt-0.5">error_outline</span>
+<p class="font-body-sm text-body-sm text-slate-800">
+<span class="font-semibold text-amber-800">Friction Point:</span> Missed primarily on late gym nights (Thursdays &amp; Saturdays).
+            </p>
+</div>
+<div class="flex items-start gap-space-xs pl-space-md">
+<span class="material-symbols-outlined text-[16px] text-emerald-600 mt-0.5">auto_fix_high</span>
+<p class="font-body-sm text-body-sm text-emerald-800 font-medium">
+<span class="font-semibold">Suggested Fix:</span> Auto-slot 30 mins earlier or during afternoon downtime.
+            </p>
+</div>
+</div>
+<!-- Action Pill Trigger -->
+<div class="flex justify-end pt-space-xs">
+<button class="flex items-center gap-1.5 px-space-md py-1.5 rounded-full bg-primary hover:bg-indigo-700 text-white font-label-md text-label-md transition-transform active:scale-95 shadow-sm font-semibold" type="button">
+<span>Apply Slot Adjustment</span>
+<span class="material-symbols-outlined text-[14px]">arrow_forward</span>
+</button>
+</div>
+</div>
+<!-- Friction Card 2: Podcast / Reading (Warm Light Amber Tint) -->
+<div class="p-space-md rounded-xl bg-[#FEFBF2] border border-amber-200/80 shadow-sm flex flex-col gap-space-sm relative overflow-hidden">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-amber-600"></span>
+<span class="font-label-caps text-label-caps uppercase font-bold text-amber-800">Attention Needed</span>
+</div>
+<span class="font-label-md text-label-md text-amber-900 bg-amber-100/70 border border-amber-200 px-space-xs py-0.5 rounded-full font-medium">2 / 5 Sessions (40%)</span>
+</div>
+<div class="flex items-start justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-white border border-amber-200 flex items-center justify-center text-primary shadow-xs">
+<span class="material-symbols-outlined text-[20px]">menu_book</span>
+</div>
+<div>
+<h3 class="font-headline-md text-headline-md text-slate-900 leading-snug">Podcast / Reading</h3>
+<p class="font-body-sm text-body-sm text-slate-600">Cognitive enrichment block</p>
+</div>
+</div>
+</div>
+<!-- Metric bar indicator -->
+<div class="w-full bg-amber-100 h-1.5 rounded-full overflow-hidden">
+<div class="bg-amber-600 h-full rounded-full" style="width: 40%;"></div>
+</div>
+<!-- Friction Breakdown Box -->
+<div class="p-space-sm rounded-lg bg-white border border-amber-200/70 flex flex-col gap-space-xs shadow-xs">
+<div class="flex items-start gap-space-xs">
+<span class="material-symbols-outlined text-[16px] text-amber-700 mt-0.5">schedule</span>
+<p class="font-body-sm text-body-sm text-slate-800">
+<span class="font-semibold text-amber-800">Friction Point:</span> Often displaced by extended work hours in the late afternoon.
+            </p>
+</div>
+<div class="flex items-start gap-space-xs pl-space-md">
+<span class="material-symbols-outlined text-[16px] text-emerald-600 mt-0.5">commute</span>
+<p class="font-body-sm text-body-sm text-emerald-800 font-medium">
+<span class="font-semibold">Suggested Fix:</span> Anchor as audio playback during commute or warmup sessions.
+            </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Success Highlights Subsection -->
+<div class="flex flex-col gap-space-xs mt-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-[18px] text-emerald-600">check_circle</span>
+<h3 class="font-label-caps text-label-caps text-slate-600 uppercase tracking-wider font-bold">Unbroken Streaks &amp; Wins</h3>
+</div>
+<div class="grid grid-cols-1 gap-space-xs">
+<!-- Win 1: Gym -->
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-white border border-slate-200 shadow-xs">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+<span class="material-symbols-outlined text-[18px]">fitness_center</span>
+</div>
+<div>
+<p class="font-body-md text-body-md text-slate-900 font-semibold">Gym (2h Target)</p>
+<p class="font-body-sm text-body-sm text-slate-500">4 / 4 sessions hit flawlessly</p>
+</div>
+</div>
+<span class="font-label-md text-label-md font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-space-sm py-1 rounded-full">100%</span>
+</div>
+<!-- Win 2: Padel Tennis -->
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-white border border-slate-200 shadow-xs">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+<span class="material-symbols-outlined text-[18px]">sports_tennis</span>
+</div>
+<div>
+<p class="font-body-md text-body-md text-slate-900 font-semibold">Padel Tennis</p>
+<p class="font-body-sm text-body-sm text-slate-500">3 / 3 competitive sessions played</p>
+</div>
+</div>
+<span class="font-label-md text-label-md font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-space-sm py-1 rounded-full">100%</span>
+</div>
+<!-- Win 3: Medications & Supplements -->
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-white border border-slate-200 shadow-xs">
+<div class="flex items-center gap-space-sm">
+<div class="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
+<span class="material-symbols-outlined text-[18px]">prescriptions</span>
+</div>
+<div>
+<p class="font-body-md text-body-md text-slate-900 font-semibold">Medications &amp; Supplements</p>
+<p class="font-body-sm text-body-sm text-slate-500">24 days consecutive streak</p>
+</div>
+</div>
+<div class="flex items-center gap-1 text-emerald-700 font-label-md text-label-md font-bold bg-emerald-50 border border-emerald-200 px-space-sm py-1 rounded-full">
+<span class="material-symbols-outlined text-[15px] text-amber-500">local_fire_department</span>
+<span>24d</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Section 3: Life Category Balance -->
+<section class="p-space-md rounded-xl bg-white border border-slate-200 shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<h2 class="font-headline-md text-headline-md text-slate-900">Life Category Balance</h2>
+<span class="font-body-sm text-body-sm text-slate-500">Distribution across 38 tracked hours</span>
+</div>
+<span class="font-label-md text-label-md text-indigo-700 bg-indigo-50 border border-indigo-200 px-space-sm py-1 rounded-full font-semibold">High Agency</span>
+</div>
+<!-- Donut Visualization + Stacked Breakdown -->
+<div class="flex items-center gap-space-md">
+<!-- Donut Chart SVG -->
+<div class="relative w-28 h-28 flex-shrink-0 flex items-center justify-center">
+<svg class="w-full h-full -rotate-90" viewbox="0 0 100 100">
+<!-- Background ring -->
+<circle class="text-slate-100" cx="50" cy="50" fill="none" r="38" stroke="currentColor" stroke-width="14"></circle>
+<!-- Fitness (35%) -> dasharray: 35 65 -->
+<circle class="text-emerald-500" cx="50" cy="50" fill="none" r="38" stroke="currentColor" stroke-dasharray="83.56 155.19" stroke-dashoffset="0" stroke-width="14"></circle>
+<!-- Relationships & Leisure (28%) -> dasharray: 28 72 -->
+<circle class="text-indigo-600" cx="50" cy="50" fill="none" r="38" stroke="currentColor" stroke-dasharray="66.85 171.9" stroke-dashoffset="-83.56" stroke-width="14"></circle>
+<!-- Personal Care & Meds (22%) -->
+<circle class="text-cyan-500" cx="50" cy="50" fill="none" r="38" stroke="currentColor" stroke-dasharray="52.52 186.23" stroke-dashoffset="-150.41" stroke-width="14"></circle>
+<!-- Mindfulness & Journaling (15%) -->
+<circle class="text-amber-500" cx="50" cy="50" fill="none" r="38" stroke="currentColor" stroke-dasharray="35.81 202.94" stroke-dashoffset="-202.93" stroke-width="14"></circle>
+</svg>
+<div class="absolute flex flex-col items-center justify-center text-center">
+<span class="font-metric-num text-metric-num text-slate-900 leading-none text-[22px]">4</span>
+<span class="font-label-caps text-label-caps text-slate-500 text-[10px] uppercase font-bold tracking-tight">Pillars</span>
+</div>
+</div>
+<!-- Segment Proportions List -->
+<div class="flex flex-col gap-1.5 flex-1 min-w-0">
+<!-- Fitness -->
+<div class="flex flex-col">
+<div class="flex items-center justify-between text-slate-800 font-label-md text-label-md">
+<span class="flex items-center gap-1.5 truncate">
+<span class="w-2 h-2 rounded-full bg-emerald-500 flex-shrink-0"></span>
+<span class="truncate font-medium text-slate-700">Fitness</span>
+</span>
+<span class="font-bold text-emerald-700">35%</span>
+</div>
+<div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-0.5">
+<div class="bg-emerald-500 h-full rounded-full" style="width: 35%;"></div>
+</div>
+</div>
+<!-- Relationships & Leisure -->
+<div class="flex flex-col">
+<div class="flex items-center justify-between text-slate-800 font-label-md text-label-md">
+<span class="flex items-center gap-1.5 truncate">
+<span class="w-2 h-2 rounded-full bg-indigo-600 flex-shrink-0"></span>
+<span class="truncate font-medium text-slate-700">Relationships &amp; Leisure</span>
+</span>
+<span class="font-bold text-indigo-700">28%</span>
+</div>
+<div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-0.5">
+<div class="bg-indigo-600 h-full rounded-full" style="width: 28%;"></div>
+</div>
+</div>
+<!-- Personal Care & Meds -->
+<div class="flex flex-col">
+<div class="flex items-center justify-between text-slate-800 font-label-md text-label-md">
+<span class="flex items-center gap-1.5 truncate">
+<span class="w-2 h-2 rounded-full bg-cyan-500 flex-shrink-0"></span>
+<span class="truncate font-medium text-slate-700">Personal Care &amp; Meds</span>
+</span>
+<span class="font-bold text-cyan-700">22%</span>
+</div>
+<div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-0.5">
+<div class="bg-cyan-500 h-full rounded-full" style="width: 22%;"></div>
+</div>
+</div>
+<!-- Mindfulness & Journaling -->
+<div class="flex flex-col">
+<div class="flex items-center justify-between text-slate-800 font-label-md text-label-md">
+<span class="flex items-center gap-1.5 truncate">
+<span class="w-2 h-2 rounded-full bg-amber-500 flex-shrink-0"></span>
+<span class="truncate font-medium text-slate-700">Mindfulness &amp; Journal</span>
+</span>
+<span class="font-bold text-amber-700">15%</span>
+</div>
+<div class="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden mt-0.5">
+<div class="bg-amber-500 h-full rounded-full" style="width: 15%;"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Interactive Context Micro-script -->
+<script>
+    document.querySelectorAll('[role="tablist"] button').forEach((tab) => {
+      tab.addEventListener('click', (e) => {
+        const parent = tab.parentElement;
+        parent.querySelectorAll('button').forEach((b) => {
+          b.setAttribute('aria-selected', 'false');
+          b.className = 'py-2 rounded-full font-label-lg text-label-lg transition-all duration-200 text-slate-600 hover:text-slate-900 text-center font-medium';
+        });
+        tab.setAttribute('aria-selected', 'true');
+        tab.className = 'py-2 rounded-full font-label-lg text-label-lg transition-all duration-200 bg-primary text-white shadow-sm text-center font-semibold';
+      });
+    });
+  </script>
+</div></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-white/90 backdrop-blur-xl border-t border-slate-200/80 shadow-[0_-4px_16px_rgba(0,0,0,0.04)]" data-active-classes="text-primary font-semibold"><div class="flex justify-around items-center h-16 px-space-xs"><a class="flex flex-col items-center justify-center min-w-[56px] min-h-[44px] gap-space-xs text-slate-500 hover:text-slate-900 transition-all" data-path="today" href="#"><span class="material-symbols-outlined text-[22px]">view_day</span><span class="font-label-md text-[11px] tracking-tight">Today</span></a><a class="flex flex-col items-center justify-center min-w-[56px] min-h-[44px] gap-space-xs text-slate-500 hover:text-slate-900 transition-all" data-path="weekly" href="#"><span class="material-symbols-outlined text-[22px]">calendar_view_week</span><span class="font-label-md text-[11px] tracking-tight">Weekly</span></a><a aria-current="page" class="flex flex-col items-center justify-center min-w-[56px] min-h-[44px] gap-space-xs transition-all text-primary font-semibold" data-path="insights" href="#"><span class="material-symbols-outlined text-[22px]" style="font-variation-settings: 'FILL' 1;">insights</span><span class="font-label-md text-[11px] tracking-tight">Insights</span></a><a class="flex flex-col items-center justify-center min-w-[56px] min-h-[44px] gap-space-xs text-slate-500 hover:text-slate-900 transition-all" data-path="targets" href="#"><span class="material-symbols-outlined text-[22px]">track_changes</span><span class="font-label-md text-[11px] tracking-tight">Targets</span></a></div></nav></body></html>
