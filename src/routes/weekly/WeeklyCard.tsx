@@ -46,7 +46,7 @@ export function WeeklyCard({
       )}
     >
       <span className="md:absolute md:top-0.5 md:right-0.5 xl:static">
-        <CheckButton status={block.status} onToggle={onToggle} title={title} size={20} />
+        <CheckButton status={block.status} onToggle={onToggle} title={title} />
       </span>
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex min-w-0 items-center gap-1.5">

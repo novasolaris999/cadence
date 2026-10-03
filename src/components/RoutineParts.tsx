@@ -9,6 +9,7 @@ import type { Block, Category, ISODate } from '../domain/types';
 import type { BlockView, RoutineCard } from './blockView';
 import { catBg, catSoft } from './categoryColor';
 import { cx } from './cx';
+import { CHECK_SIZE } from './CheckButton';
 import { Icon, isIconName } from './Icon';
 import { Sheet } from './Sheet';
 
@@ -280,10 +281,10 @@ export function RoutineChecklist({
             >
               <span
                 className={cx(
-                  'z-10 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full ring-2 ring-[var(--ring-bg)]',
+                  'z-10 flex shrink-0 items-center justify-center rounded-full ring-2 ring-[var(--ring-bg)]',
                   isDone ? 'bg-hit text-on-primary' : isMissed ? 'border-2 border-miss bg-surface' : 'border-2 border-faint bg-surface',
                 )}
-                style={{ marginLeft: 1 }}
+                style={{ marginLeft: 1, width: CHECK_SIZE, height: CHECK_SIZE }}
               >
                 {isDone && <Icon name="check" size={12} />}
               </span>

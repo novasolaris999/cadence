@@ -21,7 +21,8 @@ interface Props {
 }
 
 /**
- * A block on the Today timeline. Its look depends on its height (duration) and state:
+ * A block on the Today timeline. Titles are one size everywhere (13px semibold), so a long block
+ * never shouts louder than a short one. Its layout depends on its height (duration) and state:
  * 15 min = one line; 30-45 min = title and time; 60+ min = full card;
  * happening now = progress bar and a Complete button (today-dark.html).
  */
@@ -42,11 +43,11 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle, onToggleId }
     return (
       <Card isNow={isNow} isNew={view.isNew} className="items-center gap-2 px-2">
         <span className={cx('h-3.5 w-1.5 shrink-0 rounded-full', catBg(category))} />
-        <span className={cx('flex-1 text-label-md', titleCls)}>{title}</span>
+        <span className={cx('flex-1 text-label-lg font-semibold', titleCls)}>{title}</span>
         {view.isNew && <NewBadge />}
         {missed && <span className="text-label-sm font-semibold text-miss-ink">Missed</span>}
         <span className="font-mono text-label-sm text-primary-ink">{formatDuration(block.durationMin)}</span>
-        <CheckButton status={block.status} onToggle={onToggle} title={title} size={18} />
+        <CheckButton status={block.status} onToggle={onToggle} title={title} />
       </Card>
     );
   }
@@ -56,7 +57,7 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle, onToggleId }
       <Card isNow={isNow} isNew={view.isNew} className="items-center gap-2 p-2">
         {bar}
         <div className="flex min-w-0 flex-1 flex-col">
-          <span className={cx('text-label-lg', titleCls)}>
+          <span className={cx('text-label-lg font-semibold', titleCls)}>
             {title}
             {view.protected && <Icon name="lock" size={12} className="ml-1 inline align-[-1px] text-faint" />}
             {view.isNew && (
@@ -93,7 +94,7 @@ export function TimelineBlock({ view, nowInBlock, missed, onToggle, onToggleId }
               {view.isNew && <NewBadge />}
             </span>
           )}
-          <h3 className={cx('mt-0.5 text-headline-md font-semibold', titleCls)}>{title}</h3>
+          <h3 className={cx('mt-0.5 text-label-lg font-semibold', titleCls)}>{title}</h3>
           {block.note && <span className="truncate text-label-sm text-muted">{block.note}</span>}
         </div>
         {!isNow && <CheckButton status={block.status} onToggle={onToggle} title={title} />}

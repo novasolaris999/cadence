@@ -2,17 +2,21 @@ import type { BlockStatus } from '../domain/types';
 import { cx } from './cx';
 import { Icon } from './Icon';
 
-/** One-tap complete. Filled check when done; empty ring otherwise. */
+/** Visible size of every check circle in the app (blocks, routine checklists), in px. */
+export const CHECK_SIZE = 18;
+
+/**
+ * One-tap complete. The same 18px circle everywhere: an empty ring, or filled green with a check.
+ * The tap area around it is 32px, so it stays easy to hit.
+ */
 export function CheckButton({
   status,
   onToggle,
   title,
-  size = 24,
 }: {
   status: BlockStatus;
   onToggle: () => void;
   title: string;
-  size?: number;
 }) {
   const done = status === 'done';
   return (
@@ -24,17 +28,17 @@ export function CheckButton({
       }}
       aria-pressed={done}
       aria-label={done ? `Mark ${title} not done` : `Mark ${title} done`}
-      className={cx(
-        'flex shrink-0 items-center justify-center rounded-full transition-transform active:scale-90',
-        done ? 'text-hit' : 'text-faint hover:text-primary',
-      )}
-      style={{ width: size + 8, height: size + 8 }}
+      className="group flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-transform active:scale-90"
     >
-      {done ? (
-        <Icon name="check_circle" filled size={size} />
-      ) : (
-        <span className="rounded-full border-2 border-current" style={{ width: size - 4, height: size - 4 }} />
-      )}
+      <span
+        className={cx(
+          'flex items-center justify-center rounded-full',
+          done ? 'bg-hit text-on-primary' : 'border-2 border-faint group-hover:border-primary',
+        )}
+        style={{ width: CHECK_SIZE, height: CHECK_SIZE }}
+      >
+        {done && <Icon name="check" size={12} />}
+      </span>
     </button>
   );
 }

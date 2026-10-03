@@ -53,6 +53,9 @@ Cadence is a personal daily routine and goal tracker for one user.
 - Colors only through tokens (`src/styles/tokens.css`). No raw hex values and no Tailwind palette
   colors (`slate-500`, `emerald-50`) in components. Every token has a light and a dark value.
 - Every screen must work in both themes. Theme defaults to the system setting.
+- One size per role, whatever a block's length: every timeline and Weekly title is 13px semibold
+  (`text-label-lg font-semibold`), and every check circle is the same 18px circle (`CheckButton`, `CHECK_SIZE`,
+  also used by routine checklists) inside a 32px tap area. Long blocks get more room, never bigger text.
 - Mockup copy that implies out-of-scope features (biometric sync, notifications, search,
   AI suggestions, "optimized") is dropped, not faked.
 
