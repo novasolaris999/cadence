@@ -33,15 +33,15 @@ export function MoveScopeSheet({ pending, onDone }: { pending: PendingMove | nul
         {target.name}, {formatDayShort(block.date)} at {formatTime(block.start)}
       </p>
       <div className="flex flex-col gap-2">
-        <Option icon="event" title="Only this day" detail={formatDayShort(block.date)} onClick={() => choose('day')} />
-        <Option
+        <ScopeOption icon="event" title="Only this day" detail={formatDayShort(block.date)} onClick={() => choose('day')} />
+        <ScopeOption
           icon="date_range"
           title="Rest of this week"
           detail={weekCount ? `This one and ${weekCount} more through Sunday` : 'No other blocks left this week'}
           disabled={weekCount === 0}
           onClick={() => choose('week')}
         />
-        <Option
+        <ScopeOption
           icon="repeat"
           title="This and all future"
           detail={`${futureCount + 1} block${futureCount ? 's' : ''}, and new weeks start at ${formatTime(newStart)}${
@@ -60,7 +60,8 @@ export function MoveScopeSheet({ pending, onDone }: { pending: PendingMove | nul
   );
 }
 
-function Option({
+/** One choice in a scope sheet: icon, title, and what it will do. */
+export function ScopeOption({
   icon,
   title,
   detail,

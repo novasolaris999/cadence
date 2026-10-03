@@ -120,3 +120,65 @@ export function planTargetReplan(
   const insert = target.active ? plannedWeeks.flatMap((w) => planFill([target], w, remaining, ctx)) : [];
   return { deleteIds: stale.map((b) => b.id), insert };
 }
+
+export type RerunChange =
+  /** A missing slot is created again (for example a block you deleted). */
+  | { kind: 'restore'; targetId: string; date: ISODate; start: Minutes }
+  /** A block that no longer matches its rules is put back at the target's day and time. */
+  | { kind: 'reset'; targetId: string; date: ISODate; start: Minutes; fromDate: ISODate; fromStart: Minutes }
+  /** A block whose day is no longer in the rules (or whose target is archived) is removed. */
+  | { kind: 'remove'; targetId: string; date: ISODate; start: Minutes };
+
+export interface RerunPlan {
+  deleteIds: string[];
+  insert: Block[];
+  /** The same plan in words, ordered by date and time, for the preview. */
+  changes: RerunChange[];
+  /** Upcoming target blocks you moved by hand: Re-run leaves them where you put them. */
+  keptMoved: number;
+}
+
+/**
+ * Re-run for one week: rebuilds the rest of the week from every target's current rules.
+ *
+ * - Only upcoming slots change. Earlier days, done and skipped blocks, one-offs, and blocks you
+ *   moved by hand are never touched.
+ * - Blocks that drifted from their target's rules are reset; slots with no block are restored, so a
+ *   deleted block comes back (a normal visit keeps deletions; Re-run is the explicit "fill it again").
+ * - Protected targets' existing blocks are never changed. Their missing slots are still restored,
+ *   because restoring is not moving.
+ *
+ * `weekBlocks` must be every block in the week.
+ */
+export function planRerun(targets: Target[], weekBlocks: Block[], weekStart: ISODate, ctx: PlanContext): RerunPlan {
+  const deleteIds: string[] = [];
+  const insert: Block[] = [];
+  const changes: RerunChange[] = [];
+
+  for (const t of targets) {
+    const own = weekBlocks.filter((b) => b.targetId === t.id);
+    const plan = t.protected
+      ? { deleteIds: [], insert: t.active ? planFill([t], weekStart, own, ctx) : [] }
+      : planTargetReplan(t, own, [weekStart], ctx);
+    const added = new Map(plan.insert.map((b) => [b.scheduledFor, b]));
+    for (const id of plan.deleteIds) {
+      const old = own.find((b) => b.id === id)!;
+      const replacement = old.scheduledFor ? added.get(old.scheduledFor) : undefined;
+      if (replacement) {
+        changes.push({ kind: 'reset', targetId: t.id, date: replacement.date, start: replacement.start, fromDate: old.date, fromStart: old.start });
+        added.delete(old.scheduledFor);
+      } else {
+        changes.push({ kind: 'remove', targetId: t.id, date: old.date, start: old.start });
+      }
+    }
+    for (const b of added.values()) changes.push({ kind: 'restore', targetId: t.id, date: b.date, start: b.start });
+    deleteIds.push(...plan.deleteIds);
+    insert.push(...plan.insert);
+  }
+
+  changes.sort((a, b) => (a.date === b.date ? a.start - b.start : a.date < b.date ? -1 : 1));
+  const keptMoved = weekBlocks.filter(
+    (b) => b.targetId && b.moved && b.status === 'planned' && isUpcoming(b.date, b.start, ctx),
+  ).length;
+  return { deleteIds, insert, changes, keptMoved };
+}

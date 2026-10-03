@@ -95,7 +95,7 @@ AI-generated suggestions, search, multiple users.
 - [x] Phase 2: Supabase schema, auth, RLS, target create/edit/archive (built; awaiting owner's Supabase setup and review)
 - [x] Phase 2.5 (owner approved, pulled forward from 7): installable PWA, Google sign-in, production on `main`
 - [x] Phase 3: Today against the database, including generating this week's blocks from targets, daily toggle, NEW glow (approved and published to production)
-- [ ] Phase 4: Weekly on real data (drag between days, Re-run)
+- [x] Phase 4: Weekly on real data (drag between days, Re-run with preview) (built; awaiting owner review, then publish to `main`)
 - [ ] Phase 5: Goals history views
 - [ ] Phase 6: Insights
 - [ ] Phase 7: Polish and final production check (PWA and production already live since phase 2.5)
@@ -189,6 +189,22 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
 - Weekly: tapping a day ring highlights that day (no page jump). Under 768px the days are a sideways
   swipe row with one day per screen; from 768px (Pixel Fold inner screen, tablets, desktop) all seven
   sit side by side.
+
+- Re-run (owner chose option 1: moved blocks always stay where you put them; no "reset moved" option).
+  `planRerun` in `src/domain/schedule.ts`, one week at a time, upcoming slots only. It resets unmoved
+  scheduler blocks that drifted from their target's rules, removes days no longer in the rules (or of
+  archived targets), and restores missing slots, so deleted blocks come back (a normal visit keeps
+  deletions). Never touches past slots, done/skipped, moved, or one-off blocks. Protected targets' blocks
+  are never changed, but their missing slots are restored. Tapping Re-run shows a preview list first;
+  applying recomputes from fresh data. Disabled for past weeks. The scheduler card shows the live count of
+  differences.
+- Editing one block's length marks it moved (a change by hand), so Re-run keeps it.
+- Weekly drag between days: drop on a day ring, into another day's column (768px+), or on phones on the
+  "Drop on a day" strip pinned to the top during a drag. Routine blocks still planned ask: "Only this week"
+  (marked moved) or "Every week from now on" (swaps that weekday in the target's days; the block takes the
+  new slot and later weeks follow via `syncTarget`). "Every week" is off when the target already uses the
+  new weekday. One-off and finished blocks just move. Dragging a block back to its own day and time
+  clears the moved mark. Rules in `planDayMove` (`src/domain/moves.ts`).
 
 ## Visual check workflow
 

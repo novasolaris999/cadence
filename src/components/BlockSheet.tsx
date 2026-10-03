@@ -226,6 +226,8 @@ function EditForm({
           ...(status !== block.status ? statusPatch(status, block) : {}),
           // One-off blocks and finished blocks move directly; target blocks ask for a scope.
           ...(timeChanged && (!target || block.status !== 'planned') ? { start, moved: true } : {}),
+          // A new length is a change by hand too: Re-run leaves it alone.
+          ...(duration !== block.durationMin ? { moved: true } : {}),
         },
       },
       {

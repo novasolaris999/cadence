@@ -5,11 +5,11 @@
 // mutations update the screen before the save finishes (optimistic updates).
 
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import type { MovePlan } from '../domain/moves';
+import type { DayMovePlan, MovePlan } from '../domain/moves';
 import type { Block, Category, DayLog, ISODate, Settings, Target } from '../domain/types';
 import { ensureSetup, getApi, isDemo, setDemo } from './index';
 import { localNowStamp } from './localStamp';
-import { afterTargetSaved, ensureWeek } from './scheduling';
+import { afterTargetSaved, applyDayMove, ensureWeek, rerunWeek } from './scheduling';
 import { addDays, formatDayShort, formatTime, startOfWeek, today as todayISO } from '../domain/time';
 import { toast } from '../components/Toaster';
 
@@ -251,5 +251,36 @@ export function useApplyMove() {
       qc.invalidateQueries({ queryKey: keys.allBlocks() });
       qc.invalidateQueries({ queryKey: keys.targets() });
     },
+  });
+}
+
+/** Moves a block to another day (Weekly). Shows at once; the target's days change too for "every week". */
+export function useApplyDayMove() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (plan: DayMovePlan) => applyDayMove(getApi(), plan),
+    onMutate: async (plan) => {
+      await qc.cancelQueries({ queryKey: keys.allBlocks() });
+      const { id, ...patch } = plan.block;
+      return { undo: patchCachedBlocks(qc, id, patch) };
+    },
+    onError: (_e, _v, ctx) => ctx?.undo(),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: keys.allBlocks() });
+      qc.invalidateQueries({ queryKey: keys.targets() });
+    },
+  });
+}
+
+/** Re-run: rebuilds the rest of one week from your targets' rules (see planRerun). */
+export function useRerunWeek() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (weekStart: ISODate) => rerunWeek(getApi(), weekStart),
+    onSuccess: (plan) => {
+      const n = plan.changes.length;
+      toast(n ? `Week re-run: ${n} block${n === 1 ? '' : 's'} updated` : 'Your week already matches your targets', 'info');
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.allBlocks() }),
   });
 }

@@ -73,7 +73,7 @@ export interface Block {
   origin: BlockOrigin;
   /** The day the scheduler assigned. Stays fixed when the block is moved. */
   scheduledFor: ISODate | null;
-  /** True once you change date or time by hand. Re-run leaves moved blocks alone. */
+  /** True once you change its date, time, or length by hand. Re-run leaves moved blocks alone. */
   moved: boolean;
 }
 

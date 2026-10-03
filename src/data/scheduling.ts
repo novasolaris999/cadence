@@ -1,7 +1,8 @@
 // Turns targets into blocks, using the pure rules in domain/schedule.ts and the DataApi for storage.
 // Works the same for Supabase and demo data.
 
-import { isUpcoming, planFill, planTargetReplan, type PlanContext } from '../domain/schedule';
+import type { DayMovePlan } from '../domain/moves';
+import { isUpcoming, planFill, planRerun, planTargetReplan, type PlanContext, type RerunPlan } from '../domain/schedule';
 import { addDays, minutesOfDay, startOfWeek, today } from '../domain/time';
 import type { Block, ISODate, Target } from '../domain/types';
 import type { DataApi } from './api';
@@ -26,10 +27,6 @@ export async function ensureWeek(api: DataApi, weekStart: ISODate, ctx = planCon
 }
 
 /**
- * After a target is created, edited, archived, or restored: brings its upcoming blocks in this week and
- * every already-planned week in line with its rules. Moved, finished, and skipped blocks are kept.
- */
-/**
  * Everything that should happen when a target is saved: make sure this week and next exist (so a new
  * routine created late in the week still shows up next week), then line up its blocks.
  * Returns its next upcoming block, for the confirmation message.
@@ -47,6 +44,10 @@ export async function afterTargetSaved(api: DataApi, target: Target, ctx = planC
   return upcoming[0] ?? null;
 }
 
+/**
+ * After a target is created, edited, archived, or restored: brings its upcoming blocks in this week and
+ * every already-planned week in line with its rules. Moved, finished, and skipped blocks are kept.
+ */
 export async function syncTarget(api: DataApi, target: Target, ctx = planContext()): Promise<void> {
   const [weeks, blocks] = await Promise.all([
     api.listPlannedWeeks(startOfWeek(ctx.today)),
@@ -56,4 +57,29 @@ export async function syncTarget(api: DataApi, target: Target, ctx = planContext
   // Delete first: a re-timed block reuses its slot, and a slot can exist only once.
   await api.deleteBlocks(plan.deleteIds);
   await api.insertBlocks(plan.insert);
+}
+
+/**
+ * Re-run for one week. The plan is worked out again from fresh data at the moment you apply it, so it
+ * is right even if something changed since the preview (another device, another tab).
+ */
+export async function rerunWeek(api: DataApi, weekStart: ISODate, ctx = planContext()): Promise<RerunPlan> {
+  const [targets, blocks] = await Promise.all([api.listTargets(), api.listBlocks(weekStart, addDays(weekStart, 6))]);
+  const plan = planRerun(targets, blocks, weekStart, ctx);
+  // Delete first: a reset block reuses its slot, and a slot can exist only once.
+  await api.deleteBlocks(plan.deleteIds);
+  await api.insertBlocks(plan.insert);
+  return plan;
+}
+
+/** Moves a block to another day. For "every week", the target's days change and later weeks follow. */
+export async function applyDayMove(api: DataApi, plan: DayMovePlan, ctx = planContext()): Promise<void> {
+  const { id, ...patch } = plan.block;
+  await api.updateBlock(id, patch);
+  if (!plan.target) return;
+  const current = (await api.listTargets()).find((t) => t.id === plan.target!.id);
+  if (!current) return;
+  const next: Target = { ...current, ...plan.target };
+  await api.saveTarget(next);
+  await syncTarget(api, next, ctx);
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampStart, planMove, siblingsInScope } from './moves';
+import { canMoveWeekly, clampStart, planDayMove, planMove, siblingsInScope } from './moves';
 import { block, target } from './test-helpers';
 
 // Week of Mon 2026-09-28 .. Sun 2026-10-04, next week starts 2026-10-05.
@@ -53,5 +53,56 @@ describe('planMove', () => {
   it('keeps blocks inside the day', () => {
     expect(clampStart(1430, 60)).toBe(1380);
     expect(clampStart(-30, 60)).toBe(0);
+  });
+});
+
+describe('planDayMove', () => {
+  // Gym Mon/Wed/Fri at 18:00. Week of Mon 2026-10-05.
+  const gymMWF = target({ id: 't1', preferredDays: [1, 3, 5], frequencyPerWeek: 3, preferredStart: 1080 });
+  const wedGym = block({ id: 'w', date: '2026-10-07', start: 1080 });
+  const thu = '2026-10-08';
+
+  it('once: moves only this block and marks it moved', () => {
+    expect(planDayMove(wedGym, thu, 'once', gymMWF, [wedGym])).toEqual({
+      block: { id: 'w', date: thu, scheduledFor: '2026-10-07', moved: true },
+    });
+  });
+
+  it('once: dragging a block back to its own day and time clears the moved mark', () => {
+    const away = { ...wedGym, date: thu, moved: true };
+    expect(planDayMove(away, '2026-10-07', 'once', gymMWF, [away]).block.moved).toBe(false);
+  });
+
+  it('weekly: swaps the day in the target and the block takes the new slot', () => {
+    expect(planDayMove(wedGym, thu, 'weekly', gymMWF, [wedGym])).toEqual({
+      block: { id: 'w', date: thu, scheduledFor: thu, moved: false },
+      target: { id: 't1', preferredDays: [1, 4, 5], frequencyPerWeek: 3 },
+    });
+  });
+
+  it('weekly: turns a spread target (no picked days) into picked days', () => {
+    const spread = target({ id: 't1', preferredDays: [], frequencyPerWeek: 3, preferredStart: 1080 });
+    expect(planDayMove(wedGym, thu, 'weekly', spread, [wedGym]).target?.preferredDays).toEqual([1, 4, 5]);
+  });
+
+  it('weekly: keeps the moved mark when the time was also changed by hand', () => {
+    const late = { ...wedGym, start: 1140, moved: true };
+    expect(planDayMove(late, thu, 'weekly', gymMWF, [late]).block.moved).toBe(true);
+  });
+
+  it('weekly: if the new day slot is already held, the block keeps its slot and stays moved', () => {
+    const thuDone = block({ id: 'td', date: thu, scheduledFor: thu, status: 'done' });
+    const plan = planDayMove(wedGym, thu, 'weekly', gymMWF, [wedGym, thuDone]);
+    expect(plan.block).toEqual({ id: 'w', date: thu, scheduledFor: '2026-10-07', moved: true });
+    expect(plan.target?.preferredDays).toEqual([1, 4, 5]);
+  });
+
+  it('weekly is not offered onto a day the target already uses, for one-offs, or for finished blocks', () => {
+    expect(canMoveWeekly(wedGym, '2026-10-09', gymMWF)).toBe(false); // Friday is already a gym day
+    expect(canMoveWeekly({ ...wedGym, targetId: null }, thu, null)).toBe(false);
+    expect(canMoveWeekly({ ...wedGym, status: 'done' }, thu, gymMWF)).toBe(false);
+    expect(canMoveWeekly(wedGym, thu, gymMWF)).toBe(true);
+    // Falls back to 'once' when weekly is not possible.
+    expect(planDayMove(wedGym, '2026-10-09', 'weekly', gymMWF, [wedGym]).target).toBeUndefined();
   });
 });

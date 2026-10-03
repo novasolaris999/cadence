@@ -1,4 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  DndContext,
+  DragOverlay,
+  MouseSensor,
+  TouchSensor,
+  pointerWithin,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type CollisionDetection,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
 import { useSearchParams } from 'react-router';
 import { BlockSheet, type BlockSheetMode } from '../../components/BlockSheet';
 import { cx } from '../../components/cx';
@@ -8,7 +22,9 @@ import { MoveScopeSheet, type PendingMove } from '../../components/MoveScopeShee
 import { Page } from '../../components/Page';
 import { useBlockViews, type BlockView } from '../../components/blockView';
 import { Ring } from '../../charts/Ring';
-import { useBlocks, useCategories, useEnsureWeek, useTargets, useToggleBlockDone, useUpdateBlock } from '../../data/queries';
+import { useApplyDayMove, useBlocks, useCategories, useEnsureWeek, useTargets, useToggleBlockDone, useUpdateBlock } from '../../data/queries';
+import { planDayMove } from '../../domain/moves';
+import { planRerun } from '../../domain/schedule';
 import { dayProgress } from '../../domain/metrics';
 import {
   addDays,
@@ -24,15 +40,26 @@ import {
 import type { Block, ISODate, Minutes } from '../../domain/types';
 import { useNow } from '../../theme/useNow';
 import { periodOf } from '../today/layout';
+import { DayMoveSheet, type PendingDayMove } from './DayMoveSheet';
+import { RerunSheet } from './RerunSheet';
 import { WeeklyCard } from './WeeklyCard';
 
 const PERIODS = ['Morning', 'Afternoon', 'Evening'] as const;
+
+/** The day under the finger. The pinned strip (phones) wins over the rings it may cover. */
+const collide: CollisionDetection = (args) => {
+  const hits = pointerWithin(args);
+  const strip = hits.filter((h) => String(h.id).startsWith('strip:'));
+  return strip.length ? strip : hits;
+};
 
 /**
  * Weekly: seven days split into morning, afternoon, and evening (weekly-light.html).
  * Phones: one day per screen, swipe sideways; the ring strip highlights the day in view.
  * 768px and wider (fold inner screen, tablet, desktop): all seven days side by side.
  * Tapping a ring highlights that day (and on phones slides it into view).
+ * Drag a block to another day: drop it on a day ring (or, on phones, the day strip that appears at
+ * the top), or into another day's column from 768px.
  */
 export function WeeklyScreen() {
   const now = useNow();
@@ -58,6 +85,9 @@ export function WeeklyScreen() {
   const views = useBlockViews(blocks);
   const [sheet, setSheet] = useState<BlockSheetMode | null>(null);
   const [pending, setPending] = useState<PendingMove | null>(null);
+  const [dayPending, setDayPending] = useState<PendingDayMove | null>(null);
+  const [rerunOpen, setRerunOpen] = useState(false);
+  const dayMove = useApplyDayMove();
 
   const visible = useMemo(
     () => (filter === 'all' ? views : views.filter((v) => v.category?.id === filter)),
@@ -123,9 +153,45 @@ export function WeeklyScreen() {
     else update.mutate({ id: block.id, patch: { start: newStart, moved: true } });
   };
 
+  // ----- Drag to another day -----
+  // Touch: hold 250 ms before a drag starts, so normal swipes still scroll. Mouse: a 6 px move.
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+  );
+  const [dragging, setDragging] = useState<BlockView | null>(null);
+  const lastDragEnd = useRef(0);
+
+  const onDragStart = (e: DragStartEvent) => {
+    setDragging(views.find((v) => v.block.id === e.active.id) ?? null);
+    navigator.vibrate?.(10);
+  };
+  const onDragEnd = (e: DragEndEvent) => {
+    lastDragEnd.current = Date.now();
+    const view = dragging;
+    setDragging(null);
+    const to = e.over?.data.current?.date as ISODate | undefined;
+    if (!view || !to || to === view.block.date) return;
+    const { block, target } = view;
+    pick(to);
+    if (target && block.status === 'planned') setDayPending({ block, target, toDate: to });
+    else dayMove.mutate(planDayMove(block, to, 'once', target, []));
+  };
+  const open = (view: BlockView) => {
+    if (Date.now() - lastDragEnd.current < 300) return; // the click that ends a mouse drag
+    setSheet({ kind: 'edit', view });
+  };
+
+  // ----- Scheduler card and Re-run -----
+  const pastWeek = sunday < now.today;
   const activeTargets = targets.filter((t) => t.active);
   const generated = (blocks ?? []).filter((b) => b.origin === 'generated');
-  const movedCount = generated.filter((b) => b.moved).length;
+  const rerun = useMemo(
+    () => planRerun(targets, blocks ?? [], monday, { today: now.today, nowMin: now.minutes, newId: () => '' }),
+    [targets, blocks, monday, now.today, now.minutes],
+  );
+  const changes = pastWeek ? 0 : rerun.changes.length;
+  const protectedCount = activeTargets.filter((t) => t.protected).length;
 
   return (
     <Page wide>
@@ -150,112 +216,155 @@ export function WeeklyScreen() {
         </div>
       </section>
 
-      {/* Day rings: tap to highlight a day */}
-      <section className="mt-3 grid grid-cols-7 gap-1.5 md:gap-2">
-        {dates.map((d) => {
-          const p = dayProgress((blocks ?? []).filter((b) => b.date === d));
-          const isToday = d === now.today;
-          const isSel = d === selected;
-          const future = d > now.today;
-          const color = isToday ? 'var(--c-primary)' : future ? 'var(--c-text-faint)' : 'var(--c-hit)';
-          return (
-            <button
-              key={d}
-              type="button"
-              onClick={() => pick(d)}
-              aria-pressed={isSel}
-              aria-label={`${formatDayLong(d)}, ${p.done} of ${p.total} done`}
-              className={cx(
-                'flex flex-col items-center rounded-xl border py-2 transition-all',
-                isSel ? 'border-primary bg-primary/10 shadow-card' : 'border-border bg-surface hover:border-faint',
-              )}
-            >
-              <span className={cx('text-label-sm font-semibold uppercase', isSel || isToday ? 'text-primary-ink' : 'text-faint')}>
-                {weekdayInitial(isoWeekday(d))}
-              </span>
-              <div className="my-1">
-                <Ring value={p.total ? p.done / p.total : 0} size={32} color={color}>
-                  <span className={cx('text-label-md font-bold', isSel ? 'text-primary-ink' : 'text-text')}>{Number(d.slice(8))}</span>
-                </Ring>
-              </div>
-              <span className={cx('text-[10px] font-bold', p.pct === 100 && !future ? 'text-hit-ink' : isSel ? 'text-primary-ink' : 'text-faint')}>
-                {p.total && !future ? `${p.pct}%` : '–'}
-              </span>
-              {isToday && <span className="mt-0.5 h-1 w-1 rounded-full bg-primary" aria-hidden />}
-            </button>
-          );
-        })}
-      </section>
-
-      {/* Scheduler status */}
-      <section className="mt-4 rounded-xl border border-border bg-surface p-3 shadow-card">
-        <div className="flex items-start gap-2.5">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Icon name="autorenew" size={22} />
-          </div>
-          <div className="flex flex-col gap-0.5">
-            <span className="flex items-center gap-1.5 text-label-lg font-bold">
-              Weekly schedule <span className="h-2 w-2 rounded-full bg-hit" />
-            </span>
-            <p className="text-body-sm text-muted">
-              <strong className="font-semibold text-text">{activeTargets.length} active targets</strong> placed as{' '}
-              {generated.length} blocks this week. {movedCount > 0 && `${movedCount} moved by hand stay put on re-run.`}
-            </p>
-          </div>
-        </div>
-        <div className="mt-3 flex items-center justify-between border-t border-border pt-2">
-          <span className="text-label-md text-faint">Protected blocks never move.</span>
-          <button className="flex h-8 items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3 text-label-md font-semibold text-primary-ink active:scale-95">
-            <Icon name="sync" size={16} /> Re-run
-          </button>
-        </div>
-      </section>
-
-      {/* Category filter */}
-      <section className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>
-          All ({views.length})
-        </FilterPill>
-        {categories.map((c) => (
-          <FilterPill key={c.id} active={filter === c.id} onClick={() => setFilter(c.id)}>
-            {c.name}
-          </FilterPill>
-        ))}
-      </section>
-
-      {/* Days: a swipeable row on phones, seven columns from 768px */}
-      <section
-        ref={scroller}
-        className="no-scrollbar -mx-4 mt-3 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:snap-none md:grid-cols-7 md:gap-2 md:overflow-visible md:px-0"
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collide}
+        autoScroll={{ threshold: { x: 0, y: 0.15 } }}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => setDragging(null)}
       >
-        {dates.map((d) => (
-          <div
-            key={d}
-            ref={(el) => {
-              if (el) columns.current.set(d, el);
-            }}
-            className="w-[86%] shrink-0 snap-start md:w-auto"
-          >
-            <DaySection
-              date={d}
-              today={now.today}
-              selected={d === selected}
-              views={byDate.get(d) ?? []}
-              allOnDay={(blocks ?? []).filter((b) => b.date === d)}
-              onSelect={() => setSelected(d)}
-              onToggle={(id) => {
-                const block = blocks?.find((b) => b.id === id);
-                if (block) toggle.mutate({ block });
-              }}
-              onOpen={(view) => setSheet({ kind: 'edit', view })}
-            />
+        {/* Day rings: tap to highlight a day; drop a block on one to move it there */}
+        <section className="mt-3 grid grid-cols-7 gap-1.5 md:gap-2">
+          {dates.map((d) => {
+            const p = dayProgress((blocks ?? []).filter((b) => b.date === d));
+            const isToday = d === now.today;
+            const isSel = d === selected;
+            const future = d > now.today;
+            const color = isToday ? 'var(--c-primary)' : future ? 'var(--c-text-faint)' : 'var(--c-hit)';
+            return (
+              <DropZone key={d} id={`ring:${d}`} date={d} className="rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => pick(d)}
+                  aria-pressed={isSel}
+                  aria-label={`${formatDayLong(d)}, ${p.done} of ${p.total} done`}
+                  className={cx(
+                    'flex w-full flex-col items-center rounded-xl border py-2 transition-all',
+                    isSel ? 'border-primary bg-primary/10 shadow-card' : 'border-border bg-surface hover:border-faint',
+                  )}
+                >
+                  <span className={cx('text-label-sm font-semibold uppercase', isSel || isToday ? 'text-primary-ink' : 'text-faint')}>
+                    {weekdayInitial(isoWeekday(d))}
+                  </span>
+                  <div className="my-1">
+                    <Ring value={p.total ? p.done / p.total : 0} size={32} color={color}>
+                      <span className={cx('text-label-md font-bold', isSel ? 'text-primary-ink' : 'text-text')}>{Number(d.slice(8))}</span>
+                    </Ring>
+                  </div>
+                  <span className={cx('text-[10px] font-bold', p.pct === 100 && !future ? 'text-hit-ink' : isSel ? 'text-primary-ink' : 'text-faint')}>
+                    {p.total && !future ? `${p.pct}%` : '–'}
+                  </span>
+                  {isToday && <span className="mt-0.5 h-1 w-1 rounded-full bg-primary" aria-hidden />}
+                </button>
+              </DropZone>
+            );
+          })}
+        </section>
+
+        {/* Scheduler status */}
+        <section className="mt-4 rounded-xl border border-border bg-surface p-3 shadow-card">
+          <div className="flex items-start gap-2.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Icon name="autorenew" size={22} />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <span className="flex items-center gap-1.5 text-label-lg font-bold">
+                Weekly schedule <span className={cx('h-2 w-2 rounded-full', pastWeek ? 'bg-surface-3' : changes ? 'bg-primary' : 'bg-hit')} />
+              </span>
+              <p className="text-body-sm text-muted">
+                <strong className="font-semibold text-text">
+                  {activeTargets.length} active target{activeTargets.length === 1 ? '' : 's'}
+                </strong>{' '}
+                placed as {generated.length} block{generated.length === 1 ? '' : 's'} this week.
+                {!pastWeek && rerun.keptMoved > 0 && ` ${rerun.keptMoved} moved by hand ${rerun.keptMoved === 1 ? 'stays' : 'stay'} put.`}
+              </p>
+              <p className={cx('text-body-sm', changes ? 'font-semibold text-primary-ink' : 'text-faint')}>
+                {pastWeek
+                  ? 'Past weeks stay as they happened.'
+                  : changes
+                    ? `${changes} block${changes === 1 ? ' differs' : 's differ'} from your targets. Re-run shows them first.`
+                    : 'Everything matches your targets.'}
+              </p>
+            </div>
           </div>
-        ))}
-      </section>
+          <div className="mt-3 flex items-center justify-between border-t border-border pt-2">
+            <span className="text-label-md text-faint">
+              {protectedCount ? `${protectedCount} protected: never moved.` : 'Protected blocks never move.'}
+            </span>
+            <button
+              type="button"
+              onClick={() => setRerunOpen(true)}
+              disabled={pastWeek}
+              className="flex h-8 items-center gap-1 rounded-full border border-primary/20 bg-primary/10 px-3 text-label-md font-semibold text-primary-ink active:scale-95 disabled:opacity-40"
+            >
+              <Icon name="sync" size={16} /> Re-run
+            </button>
+          </div>
+        </section>
+
+        {/* Category filter */}
+        <section className="no-scrollbar -mx-4 mt-4 flex gap-2 overflow-x-auto px-4 pb-1">
+          <FilterPill active={filter === 'all'} onClick={() => setFilter('all')}>
+            All ({views.length})
+          </FilterPill>
+          {categories.map((c) => (
+            <FilterPill key={c.id} active={filter === c.id} onClick={() => setFilter(c.id)}>
+              {c.name}
+            </FilterPill>
+          ))}
+        </section>
+
+        {/* Days: a swipeable row on phones, seven columns from 768px */}
+        <section
+          ref={scroller}
+          className="no-scrollbar -mx-4 mt-3 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 md:mx-0 md:grid md:snap-none md:grid-cols-7 md:gap-2 md:overflow-visible md:px-0"
+        >
+          {dates.map((d) => (
+            <div
+              key={d}
+              ref={(el) => {
+                if (el) columns.current.set(d, el);
+              }}
+              className="w-[86%] shrink-0 snap-start md:w-auto"
+            >
+              <DropZone id={`col:${d}`} date={d} className="h-full rounded-2xl">
+                <DaySection
+                  date={d}
+                  today={now.today}
+                  selected={d === selected}
+                  views={byDate.get(d) ?? []}
+                  allOnDay={(blocks ?? []).filter((b) => b.date === d)}
+                  onSelect={() => setSelected(d)}
+                  onToggle={(id) => {
+                    const block = blocks?.find((b) => b.id === id);
+                    if (block) toggle.mutate({ block });
+                  }}
+                  onOpen={open}
+                  draggingId={dragging?.block.id ?? null}
+                />
+              </DropZone>
+            </div>
+          ))}
+        </section>
+
+        {/* Phones: while dragging, a strip of days at the top to drop onto, wherever you have scrolled */}
+        {dragging && <DropStrip dates={dates} from={dragging.block.date} />}
+        {/* Below the pinned strip (z-60), so the day you aim at stays visible above the card. */}
+        <DragOverlay dropAnimation={null} zIndex={55}>
+          {dragging && (
+            <div className="rotate-1 scale-[1.03] opacity-95 drop-shadow-xl">
+              <WeeklyCard view={dragging} missed={false} onToggle={() => {}} onOpen={() => {}} />
+            </div>
+          )}
+        </DragOverlay>
+      </DndContext>
 
       <Fab label="Add block" onClick={() => setSheet({ kind: 'add', date: selected, start: 9 * 60 })} />
       <BlockSheet mode={sheet} onClose={() => setSheet(null)} onMove={requestMove} />
       <MoveScopeSheet pending={pending} onDone={() => setPending(null)} />
+      <DayMoveSheet pending={dayPending} weekBlocks={blocks ?? []} onDone={() => setDayPending(null)} />
+      <RerunSheet open={rerunOpen} plan={rerun} weekStart={monday} targets={targets} onClose={() => setRerunOpen(false)} />
     </Page>
   );
 }
@@ -269,6 +378,7 @@ function DaySection({
   onSelect,
   onToggle,
   onOpen,
+  draggingId,
 }: {
   date: ISODate;
   today: ISODate;
@@ -278,6 +388,7 @@ function DaySection({
   onSelect: () => void;
   onToggle: (id: string) => void;
   onOpen: (view: BlockView) => void;
+  draggingId: string | null;
 }) {
   const isToday = date === today;
   const isTomorrow = date === addDays(today, 1);
@@ -323,13 +434,14 @@ function DaySection({
                 <span className="h-px flex-1 bg-border" />
               </div>
               {inPeriod.map((v) => (
-                <WeeklyCard
-                  key={v.block.id}
-                  view={v}
-                  missed={date < today && v.block.status === 'planned'}
-                  onToggle={() => onToggle(v.block.id)}
-                  onOpen={() => onOpen(v)}
-                />
+                <DraggableCard key={v.block.id} id={v.block.id} dragging={draggingId === v.block.id}>
+                  <WeeklyCard
+                    view={v}
+                    missed={date < today && v.block.status === 'planned'}
+                    onToggle={() => onToggle(v.block.id)}
+                    onOpen={() => onOpen(v)}
+                  />
+                </DraggableCard>
               ))}
             </div>
           );
@@ -352,5 +464,67 @@ function FilterPill({ active, onClick, children }: { active: boolean; onClick: (
     >
       {children}
     </button>
+  );
+}
+
+/** A card you can press and hold (or drag with a mouse) to move to another day. */
+function DraggableCard({ id, dragging, children }: { id: string; dragging: boolean; children: ReactNode }) {
+  const { attributes, listeners, setNodeRef } = useDraggable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      {...listeners}
+      {...attributes}
+      role={undefined}
+      tabIndex={undefined}
+      aria-roledescription="Draggable block. Press and hold to move to another day."
+      className={cx('select-none [-webkit-touch-callout:none]', dragging && 'opacity-30')}
+      style={{ touchAction: 'manipulation' }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** A place a dragged block can be dropped: it lands on `date`. Highlights while a block is over it. */
+function DropZone({ id, date, className, children }: { id: string; date: ISODate; className?: string; children: ReactNode }) {
+  const { setNodeRef, isOver, active } = useDroppable({ id, data: { date } });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cx(className, 'transition-shadow', isOver && active && 'ring-2 ring-primary ring-offset-2 ring-offset-bg')}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Phones only: the seven days pinned to the top of the screen while you drag. */
+function DropStrip({ dates, from }: { dates: ISODate[]; from: ISODate }) {
+  return (
+    <div className="pt-safe fixed inset-x-0 top-0 z-[60] border-b border-border bg-bg/95 px-3 pb-2 shadow-float backdrop-blur-xl md:hidden">
+      <p className="py-1.5 text-center text-label-sm font-semibold uppercase tracking-wider text-muted">Drop on a day</p>
+      <div className="grid grid-cols-7 gap-1.5">
+        {dates.map((d) => (
+          <StripDay key={d} date={d} current={d === from} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function StripDay({ date, current }: { date: ISODate; current: boolean }) {
+  const { setNodeRef, isOver } = useDroppable({ id: `strip:${date}`, data: { date } });
+  return (
+    <div
+      ref={setNodeRef}
+      className={cx(
+        'flex h-14 flex-col items-center justify-center rounded-xl border text-label-md font-bold transition-colors',
+        isOver ? 'border-primary bg-primary text-on-primary' : current ? 'border-primary/40 bg-primary/10 text-primary-ink' : 'border-border bg-surface text-text',
+      )}
+    >
+      <span className="text-label-sm uppercase opacity-80">{weekdayInitial(isoWeekday(date))}</span>
+      {Number(date.slice(8))}
+    </div>
   );
 }

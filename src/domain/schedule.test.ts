@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { planFill, planTargetReplan, targetDays } from './schedule';
+import { planFill, planRerun, planTargetReplan, targetDays } from './schedule';
+import type { Weekday } from './types';
 import { block, target } from './test-helpers';
 
 describe('targetDays', () => {
@@ -78,5 +79,58 @@ describe('planTargetReplan', () => {
   it('archiving removes upcoming unmoved blocks and creates none', () => {
     const blocks = [gen('2026-10-07'), gen('2026-10-09', { moved: true })];
     expect(planTargetReplan({ ...gym, active: false }, blocks, weeks, ctx)).toEqual({ deleteIds: ['b-2026-10-07'], insert: [] });
+  });
+});
+
+describe('planRerun', () => {
+  // Week of Mon 2026-10-05. "Today" is Wednesday 2026-10-07 at 12:00.
+  const WEEK = '2026-10-05';
+  let n = 0;
+  const ctx = { today: '2026-10-07', nowMin: 12 * 60, newId: () => `r${++n}` };
+  const gym = target({ id: 'gym', preferredDays: [1, 3, 5], frequencyPerWeek: 3, preferredStart: 18 * 60, durationMin: 60 });
+  const g = (date: string, p: Partial<Parameters<typeof block>[0]> = {}) =>
+    block({ targetId: 'gym', date, start: 18 * 60, durationMin: 60, ...p });
+
+  it('restores a deleted upcoming slot and leaves past days alone', () => {
+    // Monday's block was never done (a miss) and Friday's was deleted.
+    const plan = planRerun([gym], [g('2026-10-05'), g('2026-10-07')], WEEK, ctx);
+    expect(plan.deleteIds).toEqual([]);
+    expect(plan.insert.map((b) => b.date)).toEqual(['2026-10-09']);
+    expect(plan.changes).toEqual([{ kind: 'restore', targetId: 'gym', date: '2026-10-09', start: 18 * 60 }]);
+  });
+
+  it('keeps moved, done, and skipped blocks, and counts the moved ones', () => {
+    const moved = g('2026-10-10', { scheduledFor: '2026-10-09', moved: true });
+    const done = g('2026-10-07', { status: 'done' });
+    const plan = planRerun([gym], [done, moved], WEEK, ctx);
+    expect(plan.changes).toEqual([]);
+    expect(plan.keptMoved).toBe(1);
+  });
+
+  it('resets a block that drifted from the rules, and removes days no longer in the rules', () => {
+    const tuThu = { ...gym, preferredDays: [2, 4] as Weekday[], frequencyPerWeek: 2 };
+    const plan = planRerun([tuThu], [g('2026-10-08', { start: 17 * 60 }), g('2026-10-09')], WEEK, ctx);
+    expect(plan.changes).toEqual([
+      { kind: 'reset', targetId: 'gym', date: '2026-10-08', start: 18 * 60, fromDate: '2026-10-08', fromStart: 17 * 60 },
+      { kind: 'remove', targetId: 'gym', date: '2026-10-09', start: 18 * 60 },
+    ]);
+  });
+
+  it('never changes a protected target\'s blocks, but restores its missing slots', () => {
+    const prot = { ...gym, protected: true, preferredStart: 19 * 60 };
+    const plan = planRerun([prot], [g('2026-10-07', { start: 18 * 60 + 30 })], WEEK, ctx);
+    expect(plan.deleteIds).toEqual([]);
+    expect(plan.changes).toEqual([{ kind: 'restore', targetId: 'gym', date: '2026-10-09', start: 19 * 60 }]);
+  });
+
+  it('removes upcoming blocks of an archived target', () => {
+    const plan = planRerun([{ ...gym, active: false }], [g('2026-10-07'), g('2026-10-09')], WEEK, ctx);
+    expect(plan.changes.map((c) => c.kind)).toEqual(['remove', 'remove']);
+    expect(plan.insert).toEqual([]);
+  });
+
+  it('leaves one-off blocks alone', () => {
+    const coffee = block({ targetId: null, origin: 'manual', scheduledFor: null, date: '2026-10-08', title: 'Coffee' });
+    expect(planRerun([gym], [coffee, g('2026-10-07'), g('2026-10-09')], WEEK, ctx).changes).toEqual([]);
   });
 });

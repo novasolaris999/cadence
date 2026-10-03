@@ -6,8 +6,9 @@
 //
 // Pure planning only: returns what to change. The data layer applies it.
 
-import type { Block, ISODate, Minutes, Target } from './types';
-import { startOfWeek, addDays } from './time';
+import type { Block, ISODate, Minutes, Target, Weekday } from './types';
+import { startOfWeek, addDays, isoWeekday } from './time';
+import { targetDays } from './schedule';
 
 export type MoveScope = 'day' | 'week' | 'future';
 
@@ -77,5 +78,51 @@ export function planMove(
       preferredStart: start,
       windowEnd: target!.windowEnd === null ? null : Math.min(24 * 60, Math.max(start, target!.windowEnd + delta)),
     },
+  };
+}
+
+// ----- Moving a block to another day (Weekly) -----
+// - 'once':   only this block moves; it is marked moved, so Re-run leaves it there.
+// - 'weekly': the target's days change too (the block's day is swapped for the new one), so later
+//             weeks follow. The block then matches its rules again and counts as unmoved, unless its
+//             time was also changed by hand.
+
+export type DayScope = 'once' | 'weekly';
+
+export interface DayMovePlan {
+  block: { id: string; date: ISODate; scheduledFor: ISODate | null; moved: boolean };
+  /** Present only for 'weekly': the target's new days. Picked days decide the frequency. */
+  target?: Pick<Target, 'id' | 'preferredDays' | 'frequencyPerWeek'>;
+}
+
+/** The weekday a block stands for: the day the scheduler gave it, not where it sits now. */
+const slotWeekday = (b: Block): Weekday => isoWeekday(b.scheduledFor ?? b.date);
+
+/**
+ * 'weekly' only makes sense for a planned target block that stands for one of the target's days,
+ * moving to a weekday the target does not already use.
+ */
+export function canMoveWeekly(block: Block, toDate: ISODate, target: Target | null): boolean {
+  if (!target || block.targetId !== target.id || block.status !== 'planned') return false;
+  const days = targetDays(target);
+  return days.includes(slotWeekday(block)) && !days.includes(isoWeekday(toDate));
+}
+
+/** `weekBlocks` = the target's blocks in the block's week (to keep each day's slot unique). */
+export function planDayMove(block: Block, toDate: ISODate, scope: DayScope, target: Target | null, weekBlocks: Block[]): DayMovePlan {
+  if (scope === 'once' || !canMoveWeekly(block, toDate, target)) {
+    // Dragging a block back to its own day and time undoes the move.
+    const home = target !== null && toDate === block.scheduledFor && block.start === target.preferredStart;
+    return { block: { id: block.id, date: toDate, scheduledFor: block.scheduledFor, moved: !home } };
+  }
+  const t = target!;
+  const days = [...targetDays(t).filter((d) => d !== slotWeekday(block)), isoWeekday(toDate)].sort((a, b) => a - b);
+  // The block takes over the new day's slot, unless another block already holds it (say a done one).
+  const slotFree = !weekBlocks.some((b) => b.id !== block.id && b.targetId === t.id && b.scheduledFor === toDate);
+  return {
+    block: slotFree
+      ? { id: block.id, date: toDate, scheduledFor: toDate, moved: block.start !== t.preferredStart }
+      : { id: block.id, date: toDate, scheduledFor: block.scheduledFor, moved: true },
+    target: { id: t.id, preferredDays: days, frequencyPerWeek: days.length },
   };
 }
