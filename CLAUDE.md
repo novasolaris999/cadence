@@ -92,6 +92,10 @@ Cadence is a personal daily routine and goal tracker for one user.
 Optimizing auto-scheduler, WHOOP or biometric sync, push notifications, calendar sync,
 AI-generated suggestions, search, multiple users.
 
+v2 (owner approved after v1 shipped): to-do lists (phase 8) and AI natural-language capture (phase 9).
+AI capture understands typed or dictated input and proposes actions the owner confirms; it does not
+suggest what to do, and the scheduler stays plain rules.
+
 ## Build status
 
 - [x] Phase 0: SPEC.md and CLAUDE.md committed, mockups reviewed, plan approved
@@ -104,6 +108,9 @@ AI-generated suggestions, search, multiple users.
   migration 0002 (0002 applied by owner; approved and published to production)
 - [x] Phase 5: Goals history views: habit and routine history, routine grids on the Habits tab, paged reads (approved and published to production)
 - [x] Phase 6: Insights on real data: rolling windows, Routines section, Time/Done balance, honest empty states, editable on-time window (approved and published to production)
+- [ ] Phase 8 (v2): To-do lists: Shopping / Errands / People lists, star + Priority view, dates and optional
+  times on Today and Weekly, rollover, To-do tab, migration 0003
+- [ ] Phase 9 (v2): AI capture box (Claude Sonnet 5.5 via a Supabase Edge Function; owner confirms every action)
 - [x] Phase 7: Polish and final production check: accessibility (axe clean), security headers + CSP, offline copy and offline-safe saves, per-tab code loading (approved and published to production)
 
 ## Decisions log
@@ -277,6 +284,14 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   Offline banner explains what is happening. `onlineManager.setOnline(navigator.onLine)` at startup is required,
   or saves restored while offline are sent, fail, and are lost.
 - Code loading: Today is in the main bundle; Weekly, Habits pages, and Insights load on first visit (router `lazy`).
+
+- To-dos (owner decisions, phase 8): lists are Shopping, Errands, People, plus any the owner adds. "Urgent and
+  important" is a star on any to-do, collected in a Priority view across lists (not a list of its own). The owner
+  picks the day and an optional time; the app never chooses a time (that would be the out-of-scope optimizer). A
+  dated to-do without a time shows in a To-dos checklist on Today and Weekly; with a time it sits on the timeline
+  (drag to move). Unfinished to-dos roll over to today and never count as misses: they are not blocks, so habit
+  rates and streaks ignore them. A fifth tab, To-do, holds the lists.
+- AI capture model (owner decision, phase 9): Claude Sonnet 5.5 (`claude-sonnet-5-5`); the owner may switch later.
 
 ## Visual check workflow
 
