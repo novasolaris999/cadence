@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dayChoices, dueLabel, isOverdue, priorityTodos, sortTodos, todosForDay } from './todos';
+import { dayChoices, dueLabel, isOverdue, priorityTodos, sortTodos, todoDay, todosForDay } from './todos';
 import type { Todo } from './types';
 
 const TODAY = '2026-10-07'; // Wednesday
@@ -36,10 +36,26 @@ describe('todosForDay', () => {
     expect(day.untimed.map((t) => t.id)).toEqual([monday.id, mondayTimed.id].sort((a, b) => (a < b ? -1 : 1)));
   });
 
-  it('shows other days exactly as planned, done or not, with no rollover', () => {
+  it('keeps a rolled-over to-do on today once it is ticked off today', () => {
+    const tickedToday = todo({ dueDate: '2026-10-05', completedAt: `${TODAY}T08:15` });
+    const tickedTuesday = todo({ dueDate: '2026-10-05', completedAt: '2026-10-06T08:15' });
+    expect(todosForDay([tickedToday, tickedTuesday], TODAY, TODAY).untimed).toEqual([tickedToday]);
+  });
+
+  it('shows each to-do on one day only: an open one leaves its past day, a late one shows when it was done', () => {
     const doneMonday = todo({ dueDate: '2026-10-05', completedAt: '2026-10-05T09:00' });
-    const openSunday = todo({ dueDate: '2026-10-04' });
-    expect(todosForDay([doneMonday, openSunday], '2026-10-05', TODAY).untimed).toEqual([doneMonday]);
+    const openMonday = todo({ dueDate: '2026-10-05' });
+    const doneLate = todo({ dueDate: '2026-10-05', completedAt: '2026-10-06T09:00' });
+    const all = [doneMonday, openMonday, doneLate];
+    expect(todosForDay(all, '2026-10-05', TODAY).untimed).toEqual([doneMonday]);
+    expect(todosForDay(all, '2026-10-06', TODAY).untimed).toEqual([doneLate]);
+    expect(todoDay(openMonday, TODAY)).toBe(TODAY);
+    expect(todoDay(todo(), TODAY)).toBeNull();
+  });
+
+  it('keeps future days exactly as planned', () => {
+    const friday = todo({ dueDate: '2026-10-09', dueTime: 600, durationMin: 30 });
+    expect(todosForDay([friday], '2026-10-09', TODAY)).toEqual({ timed: [friday], untimed: [] });
   });
 });
 

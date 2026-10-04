@@ -22,6 +22,8 @@ interface Props {
   onClose: () => void;
   /** Called when an edit changes a target block's start time, so the screen can ask for the scope. */
   onMove: (block: Block, newStart: Minutes) => void;
+  /** "To-do" in the add sheet: hands the title, day, and time to the to-do sheet. */
+  onTodo?: (prefill: { title: string; date: ISODate; time: Minutes; duration: number }) => void;
 }
 
 /**
@@ -30,21 +32,21 @@ interface Props {
  * new-target form prefilled with what you typed. A target is the recurring rule; a block is
  * one occurrence on one date.
  */
-export function BlockSheet({ mode, onClose, onMove }: Props) {
+export function BlockSheet({ mode, onClose, onMove, onTodo }: Props) {
   if (!mode) return null;
   return mode.kind === 'add' ? (
-    <AddForm key={`${mode.date}-${mode.start}`} date={mode.date} start={mode.start} onClose={onClose} />
+    <AddForm key={`${mode.date}-${mode.start}`} date={mode.date} start={mode.start} onClose={onClose} onTodo={onTodo} />
   ) : (
     <EditForm key={mode.view.block.id} view={mode.view} onClose={onClose} onMove={onMove} />
   );
 }
 
-function AddForm({ date, start: initialStart, onClose }: { date: ISODate; start: Minutes; onClose: () => void }) {
+function AddForm({ date, start: initialStart, onClose, onTodo }: { date: ISODate; start: Minutes; onClose: () => void; onTodo: Props['onTodo'] }) {
   const navigate = useNavigate();
   const { data: categories = [] } = useCategories();
   const create = useCreateBlock();
   const saveTarget = useSaveTarget();
-  const [repeat, setRepeat] = useState<'once' | 'weekly'>('once');
+  const [repeat, setRepeat] = useState<'once' | 'weekly' | 'todo'>('once');
   // "Make it daily": turns this into a routine on all seven days, created right here.
   const [daily, setDaily] = useState(false);
   const [title, setTitle] = useState('');
@@ -113,10 +115,17 @@ function AddForm({ date, start: initialStart, onClose }: { date: ISODate; start:
         <SegmentedControl
           label="Repeat"
           value={repeat}
-          onChange={setRepeat}
+          onChange={(v) => {
+            // A to-do has its own sheet (list, star): switch to it, keeping what was typed, the day, and the time.
+            if (v === 'todo') {
+              onClose();
+              onTodo?.({ title: title.trim(), date, time: start, duration });
+            } else setRepeat(v);
+          }}
           options={[
             { value: 'once', label: 'Just this day' },
             { value: 'weekly', label: 'Repeats weekly' },
+            ...(onTodo ? [{ value: 'todo' as const, label: 'To-do' }] : []),
           ]}
         />
         <input

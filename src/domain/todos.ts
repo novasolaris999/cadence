@@ -19,16 +19,28 @@ export interface DayTodos {
 }
 
 /**
- * The to-dos that belong to `date`. Today also collects every unfinished to-do from earlier days
- * (rolled over); a rolled-over timed to-do joins the checklist, since its time has passed.
- * Other days show exactly what was planned for them, done or not.
+ * The one day a dated to-do shows on, so it is never listed twice:
+ * - still to do: its planned day, or today once that day has passed (rolled over);
+ * - done: its planned day, or the day you ticked it if that was later (it had rolled over).
+ * Someday to-dos (no date) show on no day.
+ */
+export function todoDay(t: Todo, today: ISODate): ISODate | null {
+  if (t.dueDate === null) return null;
+  if (!isDone(t)) return t.dueDate < today ? today : t.dueDate;
+  const doneOn = t.completedAt!.slice(0, 10);
+  return doneOn > t.dueDate ? doneOn : t.dueDate;
+}
+
+/**
+ * The to-dos that show on `date` (see `todoDay`). Only a to-do on its own planned day keeps its time
+ * and sits on the timeline; a rolled-over one joins the checklist, since its time has passed.
  */
 export function todosForDay(todos: Todo[], date: ISODate, today: ISODate): DayTodos {
   const timed: Todo[] = [];
   const untimed: Todo[] = [];
   for (const t of todos) {
-    if (t.dueDate === date) (t.dueTime !== null ? timed : untimed).push(t);
-    else if (date === today && isOverdue(t, today)) untimed.push(t);
+    if (todoDay(t, today) !== date) continue;
+    (t.dueTime !== null && t.dueDate === date ? timed : untimed).push(t);
   }
   return { timed: timed.sort((a, b) => a.dueTime! - b.dueTime!), untimed: sortTodos(untimed) };
 }

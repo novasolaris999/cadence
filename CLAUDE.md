@@ -109,7 +109,7 @@ suggest what to do, and the scheduler stays plain rules.
 - [x] Phase 5: Goals history views: habit and routine history, routine grids on the Habits tab, paged reads (approved and published to production)
 - [x] Phase 6: Insights on real data: rolling windows, Routines section, Time/Done balance, honest empty states, editable on-time window (approved and published to production)
 - [ ] Phase 8 (v2): To-do lists: Shopping / Errands / People lists, star + Priority view, dates and optional
-  times on Today and Weekly, rollover, To-do tab, migration 0003
+  times on Today and Weekly, rollover, To-do tab, migration 0003 (built; awaiting owner's 0003 run and review)
 - [ ] Phase 9 (v2): AI capture box (Claude Sonnet 5.5 via a Supabase Edge Function; owner confirms every action)
 - [x] Phase 7: Polish and final production check: accessibility (axe clean), security headers + CSP, offline copy and offline-safe saves, per-tab code loading (approved and published to production)
 
@@ -283,7 +283,7 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   and sent on reconnect even after a restart, with the original tick time. Other edits wait in memory only. An
   Offline banner explains what is happening. `onlineManager.setOnline(navigator.onLine)` at startup is required,
   or saves restored while offline are sent, fail, and are lost.
-- Code loading: Today is in the main bundle; Weekly, Habits pages, and Insights load on first visit (router `lazy`).
+- Code loading: Today is in the main bundle; Weekly, Habits pages, To-do, and Insights load on first visit (router `lazy`).
 
 - To-dos (owner decisions, phase 8): lists are Shopping, Errands, People, plus any the owner adds. "Urgent and
   important" is a star on any to-do, collected in a Priority view across lists (not a list of its own). The owner
@@ -291,6 +291,23 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   dated to-do without a time shows in a To-dos checklist on Today and Weekly; with a time it sits on the timeline
   (drag to move). Unfinished to-dos roll over to today and never count as misses: they are not blocks, so habit
   rates and streaks ignore them. A fifth tab, To-do, holds the lists.
+- To-dos, how they work (phase 8, rules in `src/domain/todos.ts`, table `todos`/`todo_lists`, migration 0003):
+  - A to-do shows on exactly one day (`todoDay`): open ones on their day, or on today once that day has passed
+    (rolled over, "From Mon"); done ones on their day, or on the day they were ticked if later. So a rolled-over
+    to-do ticked today stays on today's list, ticked, and nothing is ever listed twice. The stored day is never
+    rewritten. Only a to-do on its own day keeps its time on the timeline; a rolled-over one joins the checklist.
+  - Drawn as synthetic views (`todoView`, id `todo:<id>`, like routine cards): outlined dashed cards with a
+    checklist mark, never "Missed". Today: drag on the timeline changes the time. Weekly: a "To-dos" section per
+    day for untimed ones, timed ones sit with that part of the day; drag to another day changes the day.
+  - The To-do tab: Priority (starred, every list) then one tab per list (selected tab remembered per device),
+    quick add (no day; in Priority it adds starred to the first list), groups Due / Coming up / Someday, folded
+    Done with "Clear done", a "No list" tab when a deleted list left to-dos behind, and a Lists sheet (rename,
+    icon, delete twice, add; names unique). Default lists are created the first time lists are read.
+  - Adding: the to-do sheet (list, star, Someday / Today / Tomorrow / Saturday / any date, optional time and
+    length, note, "Add another"). The block add sheet (+ or tapping an empty timeline row) has a third choice,
+    "To-do", that switches to the to-do sheet with the typed title, day, and time.
+  - Ticks and stars are offline-safe saves (`OFFLINE_KEYS.todo`). Before 0003 is applied, reads return nothing,
+    the To-do tab shows "Database update needed", and saves say so.
 - AI capture model (owner decision, phase 9): Claude Sonnet 5.5 (`claude-sonnet-5-5`); the owner may switch later.
 
 ## Visual check workflow

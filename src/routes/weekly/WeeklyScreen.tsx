@@ -20,10 +20,12 @@ import { Fab } from '../../components/Fab';
 import { Icon } from '../../components/Icon';
 import { MoveScopeSheet, type PendingMove } from '../../components/MoveScopeSheet';
 import { Page } from '../../components/Page';
-import { useBlockViews, useDayItems, type BlockView } from '../../components/blockView';
+import { todoView, TODO_PREFIX, useBlockViews, useDayItems, type BlockView } from '../../components/blockView';
+import { TodoSheet, type TodoSheetMode } from '../../components/TodoSheet';
+import { todosForDay } from '../../domain/todos';
 import { RoutineSheet } from '../../components/RoutineParts';
 import { Ring } from '../../charts/Ring';
-import { useApplyDayMove, useApplyGroupDayMove, useBlocks, useCategories, useEnsureWeek, useTargets, useToggleBlockDone, useUpdateBlock } from '../../data/queries';
+import { useApplyDayMove, useApplyGroupDayMove, useBlocks, useCategories, useEnsureWeek, useTargets, useTodos, useToggleBlockDone, useToggleTodo, useUpdateBlock, useUpdateTodo } from '../../data/queries';
 import { planDayMove, planGroupDayMove } from '../../domain/moves';
 import { isAnytime } from '../../domain/routines';
 import { planRerun } from '../../domain/schedule';
@@ -46,10 +48,16 @@ import { DayMoveSheet, type PendingDayMove } from './DayMoveSheet';
 import { RerunSheet } from './RerunSheet';
 import { WeeklyCard } from './WeeklyCard';
 
-const PERIODS = ['Anytime', 'Morning', 'Afternoon', 'Evening'] as const;
+const PERIODS = ['Anytime', 'To-dos', 'Morning', 'Afternoon', 'Evening'] as const;
 
 /** Anytime habits (quick, outside a routine) get their own section; everything else goes by start time. */
-const sectionOf = (v: BlockView) => (v.target && isAnytime(v.target) ? 'Anytime' : periodOf(v.block.start));
+// To-dos without a time (or rolled over to today) get theirs; timed to-dos sit with the blocks of that part of the day.
+const sectionOf = (v: BlockView) =>
+  v.target && isAnytime(v.target)
+    ? 'Anytime'
+    : v.todo && (v.todo.dueTime === null || v.todo.dueDate !== v.block.date)
+      ? 'To-dos'
+      : periodOf(v.block.start);
 
 /** The day under the finger. The pinned strip (phones) wins over the rings it may cover. */
 const collide: CollisionDetection = (args) => {
@@ -90,7 +98,20 @@ export function WeeklyScreen() {
   const views = useBlockViews(blocks);
   // Routine habits sharing a day and time become one routine card.
   const { items, anytime } = useDayItems(views);
-  const cards = useMemo(() => [...anytime, ...items], [anytime, items]);
+  // To-dos of each day (today also collects the ones rolled over). They never count in the day's done count.
+  const { data: todos = [] } = useTodos();
+  const todoCards = useMemo(
+    () =>
+      dates.flatMap((d) => {
+        const day = todosForDay(todos, d, now.today);
+        return [...day.untimed, ...day.timed].map((t) => todoView(t, d));
+      }),
+    [todos, dates, now.today],
+  );
+  const toggleTodo = useToggleTodo();
+  const updateTodo = useUpdateTodo();
+  const [todoSheet, setTodoSheet] = useState<TodoSheetMode | null>(null);
+  const cards = useMemo(() => [...anytime, ...items, ...todoCards], [anytime, items, todoCards]);
   const [routineOpen, setRoutineOpen] = useState<string | null>(null);
   const openRoutine = cards.find((v) => v.block.id === routineOpen) ?? null;
   const groupMove = useApplyGroupDayMove();
@@ -107,6 +128,9 @@ export function WeeklyScreen() {
   const byDate = useMemo(() => {
     const map = new Map<ISODate, BlockView[]>(dates.map((d) => [d, []]));
     for (const v of visible) map.get(v.block.date)?.push(v);
+    // Timed cards in time order (timed to-dos join the blocks); Anytime and To-dos keep their own order.
+    const key = (v: BlockView) => (sectionOf(v) === 'Anytime' || sectionOf(v) === 'To-dos' ? -1 : v.block.start);
+    for (const list of map.values()) list.sort((a, b) => key(a) - key(b));
     return map;
   }, [visible, dates]);
 
@@ -185,7 +209,8 @@ export function WeeklyScreen() {
     if (!view || !to || to === view.block.date) return;
     const { block, target, group } = view;
     pick(to);
-    if (group) {
+    if (view.todo) updateTodo.mutate(view.todo.id, { dueDate: to });
+    else if (group) {
       const members = group.members.map((m) => m.block);
       if (members.every((b) => b.status === 'planned')) setDayPending({ block, target: null, toDate: to, group: { routine: group.routine, members } });
       else groupMove.mutate(planGroupDayMove(members, to, 'once', targets, group.routine, []));
@@ -194,7 +219,8 @@ export function WeeklyScreen() {
   };
   const open = (view: BlockView) => {
     if (Date.now() - lastDragEnd.current < 300) return; // the click that ends a mouse drag
-    if (view.group) setRoutineOpen(view.block.id);
+    if (view.todo) setTodoSheet({ kind: 'edit', todo: view.todo });
+    else if (view.group) setRoutineOpen(view.block.id);
     else setSheet({ kind: 'edit', view });
   };
 
@@ -353,6 +379,11 @@ export function WeeklyScreen() {
                   allOnDay={(blocks ?? []).filter((b) => b.date === d)}
                   onSelect={() => setSelected(d)}
                   onToggle={(id) => {
+                    if (id.startsWith(TODO_PREFIX)) {
+                      const todo = todos.find((t) => TODO_PREFIX + t.id === id);
+                      if (todo) toggleTodo(todo);
+                      return;
+                    }
                     const block = blocks?.find((b) => b.id === id);
                     if (block) toggle.mutate({ block });
                   }}
@@ -377,7 +408,13 @@ export function WeeklyScreen() {
       </DndContext>
 
       <Fab label="Add block" onClick={() => setSheet({ kind: 'add', date: selected, start: 9 * 60 })} />
-      <BlockSheet mode={sheet} onClose={() => setSheet(null)} onMove={requestMove} />
+      <BlockSheet
+        mode={sheet}
+        onClose={() => setSheet(null)}
+        onMove={requestMove}
+        onTodo={(p) => setTodoSheet({ kind: 'new', title: p.title, date: p.date, time: p.time, duration: p.duration })}
+      />
+      <TodoSheet mode={todoSheet} today={now.today} onClose={() => setTodoSheet(null)} />
       <MoveScopeSheet pending={pending} onDone={() => setPending(null)} />
       <DayMoveSheet pending={dayPending} weekBlocks={blocks ?? []} onDone={() => setDayPending(null)} />
       <RoutineSheet
@@ -460,7 +497,7 @@ function DaySection({
                 <DraggableCard key={v.block.id} id={v.block.id} dragging={draggingId === v.block.id}>
                   <WeeklyCard
                     view={v}
-                    missed={date < today && v.block.status === 'planned'}
+                    missed={!v.todo && date < today && v.block.status === 'planned'}
                     onToggle={() => onToggle(v.block.id)}
                     onToggleId={onToggle}
                     onOpen={() => onOpen(v)}

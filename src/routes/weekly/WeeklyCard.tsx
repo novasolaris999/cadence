@@ -31,6 +31,7 @@ export function WeeklyCard({
   onOpen: () => void;
 }) {
   if (view.group) return <RoutineWeeklyCard view={view} missed={missed} onToggleId={onToggleId} onOpen={onOpen} />;
+  if (view.todo) return <TodoWeeklyCard view={view} onToggle={onToggle} onOpen={onOpen} />;
   const { block, target, category, title } = view;
   const done = block.status === 'done';
   const skipped = block.status === 'skipped';
@@ -150,6 +151,35 @@ function RoutineWeeklyCard({
         </div>
       </div>
       <RoutineChecklist members={members} category={category} missed={missed} onToggleId={onToggleId} />
+    </div>
+  );
+}
+
+/** A to-do in Weekly: outlined (a chore, not a habit), with its time if it has one. Never "Missed". */
+function TodoWeeklyCard({ view, onToggle, onOpen }: { view: BlockView; onToggle: () => void; onOpen: () => void }) {
+  const { block, title, todo } = view;
+  const done = block.status === 'done';
+  const timed = todo!.dueTime !== null && todo!.dueDate === block.date;
+  return (
+    <div
+      onClick={onOpen}
+      className="relative flex cursor-pointer items-center gap-2 rounded-xl border border-dashed border-border bg-surface p-2.5 transition-colors hover:border-faint md:block md:p-2 md:pr-7 xl:flex xl:p-2.5 xl:pr-2.5"
+    >
+      <OpenOverlay label={title} onOpen={onOpen} />
+      <span className="relative md:absolute md:top-0.5 md:right-0.5 xl:static">
+        <CheckButton status={block.status} onToggle={onToggle} title={title} />
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className={cx('truncate text-label-lg font-semibold md:line-clamp-2 md:whitespace-normal md:text-label-md', done && 'text-faint line-through')}>
+          {title}
+        </span>
+        <span className="flex items-center gap-1 truncate text-body-sm text-muted md:text-label-sm">
+          <Icon name="checklist" size={12} className="text-primary-ink" />
+          To-do
+          {timed && <span className="font-medium text-primary-ink"> · {formatTime(block.start)}</span>}
+        </span>
+      </div>
+      {todo!.starred && <Icon name="star" filled size={14} className="shrink-0 text-warn md:hidden xl:block" title="Starred" />}
     </div>
   );
 }

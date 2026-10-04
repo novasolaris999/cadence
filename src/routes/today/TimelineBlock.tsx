@@ -31,6 +31,7 @@ interface Props {
  */
 export function TimelineBlock({ view, nowInBlock, missed, onToggle, onToggleId, onOpen }: Props) {
   if (view.group) return <RoutineBlock view={view} nowInBlock={nowInBlock} missed={missed} onToggleId={onToggleId} onOpen={onOpen} />;
+  if (view.todo) return <TodoBlock view={view} nowInBlock={nowInBlock} onToggle={onToggle} onOpen={onOpen} />;
   const { block, category, title } = view;
   const done = block.status === 'done';
   const skipped = block.status === 'skipped';
@@ -146,6 +147,7 @@ function Card({
   onOpen,
   isNow,
   isNew,
+  todo,
   className,
   children,
 }: {
@@ -153,14 +155,17 @@ function Card({
   onOpen: () => void;
   isNow: boolean;
   isNew: boolean;
+  /** To-dos are outlined, not filled: a chore you planned, not a habit. */
+  todo?: boolean;
   className: string;
   children: ReactNode;
 }) {
   return (
     <div
       className={cx(
-        'relative flex h-full w-full overflow-hidden rounded-lg shadow-card',
-        isNow ? 'bg-surface-2 ring-2 ring-primary/50' : 'bg-surface-3/70',
+        'relative flex h-full w-full overflow-hidden rounded-lg',
+        todo ? 'border border-dashed border-border bg-surface' : 'shadow-card',
+        isNow ? 'bg-surface-2 ring-2 ring-primary/50' : todo ? '' : 'bg-surface-3/70',
         isNew && 'glow-new',
         className,
       )}
@@ -213,6 +218,29 @@ function RoutineBlock({
         </span>
       </div>
       <RoutineChecklist members={members} category={category} missed={missed} onToggleId={onToggleId} />
+    </Card>
+  );
+}
+
+/** A timed to-do on the timeline: outlined card, checklist mark, never "Missed" (to-dos roll over instead). */
+function TodoBlock({ view, nowInBlock, onToggle, onOpen }: Pick<Props, 'view' | 'nowInBlock' | 'onToggle' | 'onOpen'>) {
+  const { block, title, todo } = view;
+  const done = block.status === 'done';
+  const isNow = nowInBlock !== null && !done;
+  const short = block.durationMin <= 15;
+  return (
+    <Card label={title} onOpen={onOpen} isNow={isNow} isNew={false} todo className={cx('items-center gap-2', short ? 'px-2' : 'p-2')}>
+      <Icon name="checklist" size={16} className="shrink-0 text-primary-ink" />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className={cx('truncate text-label-lg font-semibold', done ? 'text-muted line-through' : 'text-text')}>{title}</span>
+        {!short && (
+          <span className={cx('truncate font-mono text-label-sm', done ? 'text-hit-ink' : 'text-muted')}>
+            <span className="font-sans">To-do</span> · {formatTimeRange(block.start, block.durationMin)}
+          </span>
+        )}
+      </div>
+      {todo?.starred && <Icon name="star" filled size={16} className="shrink-0 text-warn" title="Starred" />}
+      <CheckButton status={block.status} onToggle={onToggle} title={title} />
     </Card>
   );
 }

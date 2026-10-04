@@ -3,13 +3,15 @@ import { newId } from '../data/api';
 import { useDeleteTodos, useSaveTodo, useTodoLists } from '../data/queries';
 import { dayChoices } from '../domain/todos';
 import { formatDuration } from '../domain/time';
-import type { ISODate, Todo } from '../domain/types';
+import type { ISODate, Minutes, Todo } from '../domain/types';
 import { cx } from './cx';
 import { Chip, Field, TimeInput } from './form';
 import { Icon, isIconName } from './Icon';
 import { Sheet } from './Sheet';
 
-export type TodoSheetMode = { kind: 'new'; listId?: string | null; date?: ISODate | null; starred?: boolean } | { kind: 'edit'; todo: Todo };
+export type TodoSheetMode =
+  | { kind: 'new'; listId?: string | null; date?: ISODate | null; starred?: boolean; title?: string; time?: Minutes; duration?: number }
+  | { kind: 'edit'; todo: Todo };
 
 const LENGTHS = [15, 30, 45, 60, 90, 120];
 
@@ -39,7 +41,15 @@ function TodoForm({ mode, today, onClose }: { mode: TodoSheetMode; today: ISODat
   const remove = useDeleteTodos();
   const editing = mode.kind === 'edit';
   const [draft, setDraft] = useState<Todo>(() =>
-    mode.kind === 'edit' ? mode.todo : blank(mode.listId ?? null, mode.date ?? null, mode.starred ?? false),
+    mode.kind === 'edit'
+      ? mode.todo
+      : {
+          ...blank(mode.listId ?? null, mode.date ?? null, mode.starred ?? false),
+          title: mode.title ?? '',
+          ...(mode.date && mode.time !== undefined
+            ? { dueTime: mode.time, durationMin: LENGTHS.includes(mode.duration ?? 0) ? mode.duration! : 30 }
+            : {}),
+        },
   );
   const [confirmDelete, setConfirmDelete] = useState(false);
   const title = useRef<HTMLInputElement>(null);

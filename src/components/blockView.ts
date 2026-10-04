@@ -3,7 +3,7 @@ import { useCategories, useRoutines, useTargets } from '../data/queries';
 import { isNewTarget } from '../domain/novelty';
 import { groupByRoutine, isAnytime, routineMinutes, routineSpan } from '../domain/routines';
 import { today } from '../domain/time';
-import type { Block, Category, Routine, Target } from '../domain/types';
+import type { Block, Category, ISODate, Routine, Target, Todo } from '../domain/types';
 
 /** A block joined with its target and category, ready to render. */
 export interface BlockView {
@@ -19,6 +19,8 @@ export interface BlockView {
    * `block` is then a stand-in spanning the whole routine (id 'routine:...'), used for layout and drag.
    */
   group?: RoutineCard;
+  /** Set when this view is a timed to-do (id 'todo:...'). To-dos are never habits: no misses, no rates. */
+  todo?: Todo;
 }
 
 export interface RoutineCard {
@@ -30,6 +32,37 @@ export interface RoutineCard {
 }
 
 export const isRoutineId = (id: string) => id.startsWith('routine:');
+export const TODO_PREFIX = 'todo:';
+
+/**
+ * A to-do drawn like a block, on the day it shows (`todoDay`; a rolled-over one shows on today).
+ * Only its day, time, and length are used for layout.
+ */
+export function todoView(t: Todo, date: ISODate = t.dueDate!): BlockView {
+  return {
+    block: {
+      id: TODO_PREFIX + t.id,
+      targetId: null,
+      title: t.title,
+      categoryId: null,
+      date,
+      start: t.dueTime ?? 0,
+      durationMin: t.durationMin ?? 30,
+      status: t.completedAt ? 'done' : 'planned',
+      completedAt: t.completedAt,
+      note: t.note,
+      origin: 'manual',
+      scheduledFor: null,
+      moved: false,
+    },
+    target: null,
+    category: null,
+    title: t.title,
+    protected: false,
+    isNew: false,
+    todo: t,
+  };
+}
 
 export function useBlockViews(blocks: Block[] | undefined): BlockView[] {
   const { data: targets = [] } = useTargets();

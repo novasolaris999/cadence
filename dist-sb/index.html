@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="theme-color" content="#faf8ff" />
+    <title>Cadence</title>
+    <script>
+      // Runs before the first paint so the page never flashes the wrong theme.
+      // The React ThemeProvider takes over after load (src/theme/ThemeProvider.tsx).
+      (function () {
+        var pref = 'system';
+        try { pref = localStorage.getItem('cadence.theme') || 'system'; } catch (e) {}
+        var dark = pref === 'dark' || (pref === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+      })();
+    </script>
+    <script type="module" crossorigin src="/assets/index-BQ1EqWYM.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/useNow-Bn_HcQb6.js">
+    <link rel="modulepreload" crossorigin href="/assets/form-DetIROVR.js">
+    <link rel="modulepreload" crossorigin href="/assets/CheckButton-DH7Ebl-M.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-DGvJ419M.css">
+  <link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

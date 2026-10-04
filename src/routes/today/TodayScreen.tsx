@@ -6,12 +6,15 @@ import { DayLogSheet, type DayLogTarget } from '../../components/DayLogSheet';
 import { Icon } from '../../components/Icon';
 import { MoveScopeSheet, type PendingMove } from '../../components/MoveScopeSheet';
 import { Page } from '../../components/Page';
-import { useBlockViews, useDayItems, type BlockView } from '../../components/blockView';
+import { todoView, TODO_PREFIX, useBlockViews, useDayItems, type BlockView } from '../../components/blockView';
+import { TodoDayList } from '../../components/TodoDayList';
+import { TodoSheet, type TodoSheetMode } from '../../components/TodoSheet';
 import { AnytimeList, RoutineSheet } from '../../components/RoutineParts';
 import { usePersistentToggle } from '../../components/usePersistentToggle';
 import { DEFAULT_SETTINGS } from '../../data/api';
-import { useBlocks, useDayLogs, useEnsureWeek, useSettings, useTargets, useToggleBlockDone, useUpdateBlock } from '../../data/queries';
+import { useBlocks, useDayLogs, useEnsureWeek, useSettings, useTargets, useTodoLists, useTodos, useToggleBlockDone, useToggleTodo, useUpdateBlock, useUpdateTodo } from '../../data/queries';
 import { dayProgress } from '../../domain/metrics';
+import { todosForDay } from '../../domain/todos';
 import { addDays, formatDayShort, formatTime, startOfWeek } from '../../domain/time';
 import type { Block, ISODate, Minutes } from '../../domain/types';
 import { useNow } from '../../theme/useNow';
@@ -39,7 +42,15 @@ export function TodayScreen() {
   const update = useUpdateBlock();
   const views = useBlockViews(blocks);
   // Routine habits sharing a time become one card; quick habits outside routines go to "Anytime".
-  const { items, anytime } = useDayItems(views);
+  const { items: habitItems, anytime } = useDayItems(views);
+  // To-dos: timed ones sit on the timeline next to habits; the rest (and today's rollover) get a checklist.
+  const { data: todos = [] } = useTodos();
+  const { data: todoLists = [] } = useTodoLists();
+  const dayTodos = useMemo(() => todosForDay(todos, date, now.today), [todos, date, now.today]);
+  const items = useMemo(() => [...habitItems, ...dayTodos.timed.map((t) => todoView(t))], [habitItems, dayTodos.timed]);
+  const toggleTodo = useToggleTodo();
+  const updateTodo = useUpdateTodo();
+  const [todoSheet, setTodoSheet] = useState<TodoSheetMode | null>(null);
   const [routineOpen, setRoutineOpen] = useState<string | null>(null);
   const openRoutine = items.find((v) => v.block.id === routineOpen) ?? null;
   const progress = dayProgress(blocks ?? []);
@@ -62,8 +73,10 @@ export function TodayScreen() {
   );
 
   /** Target blocks still planned ask how far the move reaches; anything else just moves. */
-  const requestMove = (view: Pick<BlockView, 'block' | 'target' | 'group'>, newStart: Minutes) => {
-    if (view.group) {
+  const requestMove = (view: Pick<BlockView, 'block' | 'target' | 'group' | 'todo'>, newStart: Minutes) => {
+    if (view.todo) {
+      updateTodo.mutate(view.todo.id, { dueTime: newStart });
+    } else if (view.group) {
       const { routine, members } = view.group;
       setPending({ block: view.block, target: null, newStart, group: { routine, members: members.map((m) => m.block) } });
     } else if (view.target && view.block.status === 'planned') {
@@ -109,7 +122,15 @@ export function TodayScreen() {
 
       <AnytimeList views={anytime} past={date < now.today} />
 
-      {blocks && blocks.length === anytime.length && (
+      <TodoDayList
+        todos={dayTodos.untimed}
+        lists={todoLists}
+        today={now.today}
+        onOpen={(todo) => setTodoSheet({ kind: 'edit', todo })}
+        onAdd={() => setTodoSheet({ kind: 'new', date })}
+      />
+
+      {blocks && blocks.length === anytime.length && dayTodos.timed.length + dayTodos.untimed.length === 0 && (
         <EmptyDay hasTargets={targets.some((t) => t.active)} onAdd={() => setSheet({ kind: 'add', date, start: nextSlot() })} />
       )}
 
@@ -124,10 +145,17 @@ export function TodayScreen() {
         onShowEarly={setShowEarly}
         onShowLate={setShowLate}
         onToggle={(id) => {
+          if (id.startsWith(TODO_PREFIX)) {
+            const todo = todos.find((t) => TODO_PREFIX + t.id === id);
+            if (todo) toggleTodo(todo);
+            return;
+          }
           const block = blocks?.find((b) => b.id === id);
           if (block) toggle.mutate({ block });
         }}
-        onOpen={(view) => (view.group ? setRoutineOpen(view.block.id) : setSheet({ kind: 'edit', view }))}
+        onOpen={(view) =>
+          view.todo ? setTodoSheet({ kind: 'edit', todo: view.todo }) : view.group ? setRoutineOpen(view.block.id) : setSheet({ kind: 'edit', view })
+        }
         onAddAt={(start) => setSheet({ kind: 'add', date, start })}
         onDrop={requestMove}
       />
@@ -144,6 +172,7 @@ export function TodayScreen() {
       <BlockSheet
         mode={sheet}
         onClose={() => setSheet(null)}
+        onTodo={(p) => setTodoSheet({ kind: 'new', title: p.title, date: p.date, time: p.time, duration: p.duration })}
         onMove={(block: Block, newStart) => requestMove({ block, target: views.find((v) => v.block.id === block.id)?.target ?? null }, newStart)}
       />
       <MoveScopeSheet pending={pending} onDone={() => setPending(null)} />
@@ -155,6 +184,7 @@ export function TodayScreen() {
         onClose={() => setRoutineOpen(null)}
       />
       <DayLogSheet target={logTarget} onClose={() => setLogTarget(null)} />
+      <TodoSheet mode={todoSheet} today={now.today} onClose={() => setTodoSheet(null)} />
     </Page>
   );
 }

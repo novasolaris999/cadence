@@ -342,7 +342,7 @@ export function buildSampleTodos(now = new Date()): Todo[] {
     t({ id: 'td-bulbs', title: 'Light bulbs', completedAt: `${addDays(today, -1)}T18:20` }),
     t({ id: 'td-passport', title: 'Renew passport', listId: 'l-errands', starred: true, dueDate: addDays(today, -2) }),
     t({ id: 'td-dry', title: 'Pick up dry cleaning', listId: 'l-errands', dueDate: addDays(today, 1) }),
-    t({ id: 'td-post', title: 'Post office: return parcel', listId: 'l-errands', dueDate: today, dueTime: 13 * 60, durationMin: 30 }),
+    t({ id: 'td-post', title: 'Post office: return parcel', listId: 'l-errands', dueDate: today, dueTime: 14 * 60, durationMin: 30 }),
     t({ id: 'td-sam', title: 'Coffee with Sam', listId: 'l-people', dueDate: addDays(today, 2), dueTime: 10 * 60, durationMin: 60 }),
     t({ id: 'td-mom', title: 'Call Mom', listId: 'l-people', starred: true }),
   ];

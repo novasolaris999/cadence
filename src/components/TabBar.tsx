@@ -6,6 +6,7 @@ const TABS: { to: string; label: string; icon: IconName }[] = [
   { to: '/today', label: 'Today', icon: 'view_day' },
   { to: '/weekly', label: 'Weekly', icon: 'calendar_view_week' },
   { to: '/goals', label: 'Habits', icon: 'grid_view' },
+  { to: '/todo', label: 'To-do', icon: 'checklist' },
   { to: '/insights', label: 'Insights', icon: 'monitoring' },
 ];
 

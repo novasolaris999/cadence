@@ -9,6 +9,7 @@ const weekly = async () => ({ Component: (await import('./routes/weekly/WeeklySc
 const goals = async () => ({ Component: (await import('./routes/goals/GoalsScreen')).GoalsScreen });
 const habit = async () => ({ Component: (await import('./routes/goals/TargetDetailScreen')).TargetDetailScreen });
 const routine = async () => ({ Component: (await import('./routes/goals/RoutineScreen')).RoutineScreen });
+const todo = async () => ({ Component: (await import('./routes/todo/TodoScreen')).TodoScreen });
 const insights = async () => ({ Component: (await import('./routes/insights/InsightsScreen')).InsightsScreen });
 
 // Each tab is a real URL, so the phone's back button works and screens can be bookmarked.
@@ -24,6 +25,7 @@ export const router = createBrowserRouter([
       { path: 'goals/routine/new', lazy: routine, handle: { title: 'Habits' } },
       { path: 'goals/routine/:routineId', lazy: routine, handle: { title: 'Habits' } },
       { path: 'goals/:targetId', lazy: habit, handle: { title: 'Habits' } },
+      { path: 'todo', lazy: todo, handle: { title: 'To-do' } },
       { path: 'insights', lazy: insights, handle: { title: 'Insights' } },
       { path: '*', element: <Navigate to="/today" replace /> },
     ],
