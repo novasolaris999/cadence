@@ -3,7 +3,7 @@
 // there is no "where user_id = me" here: the database adds it. New rows get user_id from
 // the signed-in session through the column default (auth.uid()).
 
-import { FunctionsFetchError, FunctionsHttpError, type SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { DataApi } from './api';
 import { DEFAULT_CATEGORIES, DEFAULT_TODO_LISTS, newId } from './api';
 import {
@@ -36,6 +36,8 @@ import {
 } from './mappers';
 import { formatTime } from '../domain/time';
 import type { CaptureReply } from '../domain/capture';
+
+const SUPABASE_KEY = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? import.meta.env.VITE_SUPABASE_ANON_KEY) as string | undefined;
 
 /** Throws Supabase errors so TanStack Query can show and retry them. */
 function check(res: { error: { message: string; code?: string } | null }): void {
@@ -325,17 +327,26 @@ export function supabaseApi(db: SupabaseClient): DataApi {
       check(await db.from('todos').delete().in('id', ids));
     },
 
+    // Capture runs on the app's own server (api/capture.ts on Vercel), which holds the Claude key. It checks
+    // who you are with this sign-in token, so it is sent along; the database is not involved.
     async capture(req) {
-      const { data, error } = await db.functions.invoke<CaptureReply>('capture', { body: req });
-      if (!error && data) return data;
-      if (error instanceof FunctionsHttpError) {
-        const res = error.context as Response;
-        if (res.status === 404) throw new Error('Capture is not set up yet: the capture function is not deployed in Supabase.');
-        const body = (await res.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(body?.error ?? `Capture failed (${res.status}).`);
+      const { data } = await db.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) throw new Error('Sign in to use capture.');
+      let res: Response;
+      try {
+        res = await fetch('/api/capture', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, apikey: SUPABASE_KEY ?? '' },
+          body: JSON.stringify(req),
+        });
+      } catch {
+        throw new Error('Could not reach capture. Check your connection and try again.');
       }
-      if (error instanceof FunctionsFetchError) throw new Error('Could not reach capture. Check your connection and try again.');
-      throw new Error('Capture failed. Try again.');
+      const body = (await res.json().catch(() => null)) as (CaptureReply & { error?: string }) | null;
+      if (res.ok && body && Array.isArray(body.actions)) return body;
+      if (res.status === 404) throw new Error('Capture is not available on this version of the app yet.');
+      throw new Error(body?.error ?? `Capture failed (${res.status}).`);
     },
 
     async listDayLogs(from, to) {

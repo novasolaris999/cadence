@@ -63,7 +63,7 @@ export interface DataApi {
 
   /**
    * Capture: reads a typed request and returns proposals (nothing is saved). Real mode asks Claude through the
-   * `capture` Edge Function; demo mode uses a simple stand-in on the device.
+   * capture server function (api/capture.ts); demo mode uses a simple stand-in on the device.
    */
   capture(req: CaptureRequest): Promise<CaptureReply>;
 }

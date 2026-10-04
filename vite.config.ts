@@ -38,6 +38,7 @@ export default defineConfig({
         // Only the Latin font files are kept offline; other alphabets still load if ever needed.
         globIgnores: ['**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
         navigateFallback: '/index.html', // every app URL (e.g. /goals/123) opens the app offline too
+        navigateFallbackDenylist: [/^\/api\//], // server functions (capture) are never answered by the app shell
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         skipWaiting: true,

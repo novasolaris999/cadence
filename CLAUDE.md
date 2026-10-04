@@ -45,10 +45,10 @@ Cadence is a personal daily routine and goal tracker for one user.
 - Without these vars the app always runs on in-memory demo data (`src/data/sampleApi.ts`) and shows a
   "Demo" badge. This is how screenshot checks run in the build container.
 - One-time Supabase setup steps for the owner: `docs/supabase-setup.md`. Google sign-in: `docs/google-signin-setup.md`.
-- Capture (phase 9) secrets live in Supabase > Edge Functions > Secrets, never in Vercel or the repo:
-  `ANTHROPIC_API_KEY`, `CAPTURE_ALLOWED_EMAILS` (only these accounts may use capture), optional `CAPTURE_MODEL`.
-  Setup steps: `docs/capture-setup.md`. The owner deploys `supabase/functions/capture/index.ts` by pasting it into
-  the Supabase dashboard editor (single file, no local imports), so any change to it must be re-pasted: say so.
+- Capture (phase 9) server settings are Vercel environment variables (Production and Preview), never `VITE_`-prefixed
+  and never in the repo: `ANTHROPIC_API_KEY` (marked Sensitive), `CAPTURE_ALLOWED_EMAILS` (only these accounts may
+  use capture), optional `CAPTURE_MODEL`. Changes take effect on the next deployment. Setup steps:
+  `docs/capture-setup.md` (owner decision: API key in a capped `cadence` workspace; no Workload Identity Federation).
 
 ## Conventions
 
@@ -114,8 +114,8 @@ suggest what to do, and the scheduler stays plain rules.
 - [x] Phase 6: Insights on real data: rolling windows, Routines section, Time/Done balance, honest empty states, editable on-time window (approved and published to production)
 - [x] Phase 8 (v2): To-do lists: Shopping / Errands / People lists, star + Priority view, dates and optional
   times on Today and Weekly, rollover, To-do tab, migration 0003 (0003 applied by owner; approved and published to production)
-- [ ] Phase 9 (v2): AI capture box (Claude Sonnet 5.5 via a Supabase Edge Function; owner confirms every action)
-  (built; awaiting owner's setup per `docs/capture-setup.md` and review)
+- [ ] Phase 9 (v2): AI capture box (Claude Sonnet 5.5 via a Vercel Function, `api/capture.ts`; owner confirms every
+  action) (built; awaiting owner's setup per `docs/capture-setup.md` and review). Then: Google sign-in, then friends.
 - [x] Phase 7: Polish and final production check: accessibility (axe clean), security headers + CSP, offline copy and offline-safe saves, per-tab code loading (approved and published to production)
 
 ## Decisions log
@@ -330,8 +330,14 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
 - AI capture model (owner decision, phase 9): Claude Sonnet 5.5 (`claude-sonnet-5-5`); the owner may switch later
   (secret `CAPTURE_MODEL`, no code change).
 - Capture, how it works (phase 9):
-  - Edge Function `supabase/functions/capture/index.ts` (Deno, `npm:@anthropic-ai/sdk@0.131.0`). It checks the
-    caller with Supabase Auth (`/auth/v1/user`, using the request's `apikey`), then the email allow-list, then calls
+  - Owner decision (path): the server is a Vercel Function, `api/capture.ts` (POST /api/capture, same origin, so no
+    CORS and CSP `connect-src 'self'` covers it), deployed with every push and testable on previews. It replaced a
+    Supabase Edge Function, which needed the owner to paste code by hand after every change. `@anthropic-ai/sdk`
+    (0.131.0) is a dependency used only by `api/`; it is not in the app bundle. `tsconfig.api.json` typechecks `api/`;
+    `vercel.json` keeps `/api/` out of the app-shell rewrite and gives the function 30 s; the service worker never
+    answers `/api/` navigations.
+  - The function checks the caller with Supabase Auth (`/auth/v1/user` with the session token and the publishable key
+    the app sends as `apikey`; `VITE_SUPABASE_URL` from the Vercel env), then the email allow-list, then calls
     Claude once: strict tools `add_todo`, `add_habit`, `add_routine`, `add_block`, `ask_followup`; `tool_choice` auto
     (forced tool use is a 400 on Sonnet 5.5); effort `low`; cached system prompt; server-side refusal fallback
     (`fallbacks: 'default'`, beta `server-side-fallback-2026-07-01`). It only returns proposals and never writes data.
@@ -353,9 +359,11 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
     (`useApplyCapture`), so habits and routines get their blocks and their usual "first block" toast. Needs a
     connection; offline it says so.
   - Demo mode uses `src/sample/demoCapture.ts`, a few fixed patterns on the device, labelled as a stand-in.
-  - `supabase/functions/capture/check.deno.ts` runs the function against stand-ins for Claude and Supabase Auth
-    (install Deno with `npm install deno` in a scratch folder without a package.json; set `DENO_CERT` to the proxy
-    CA bundle in the cloud container).
+  - `tests/captureApi.test.ts` runs the function with the real SDK pointed at a fake fetch (checks the exact request:
+    model, effort, fallbacks header, strict tools, prompt content) and a fake Supabase Auth, in `npm test`.
+  - Before friends get Capture: add a per-person daily limit (needs a small table and migration), then add their
+    emails to `CAPTURE_ALLOWED_EMAILS`. Friends signing in needs Google sign-in first (Supabase's built-in email is
+    meant for testing, not for other people's sign-in links).
 
 ## Visual check workflow
 

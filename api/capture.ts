@@ -1,19 +1,18 @@
 // Cadence capture: reads one typed or dictated request and proposes what to add.
 //
-// Runs as a Supabase Edge Function (Deno). It holds the Claude API key (secret ANTHROPIC_API_KEY), so the key
-// never reaches the browser. It only PROPOSES actions: the app shows them as preview cards and saves nothing
-// until the owner confirms, through its normal data paths (row level security applies as usual).
+// A Vercel Function (Node.js), deployed with the app on every push: POST /api/capture. It holds the Claude API
+// key (environment variable ANTHROPIC_API_KEY, server-side only), so the key never reaches the browser or the
+// repository. It only PROPOSES actions: the app shows them as preview cards and saves nothing until the owner
+// confirms, through its normal data paths (row level security applies as usual).
 //
-// Secrets (Supabase > Edge Functions > Secrets):
-//   ANTHROPIC_API_KEY       required. A Claude API key from console.anthropic.com.
-//   CAPTURE_ALLOWED_EMAILS  required. Comma-separated emails allowed to use capture (the owner). Anyone else who
-//                           signs in gets a 403, so a stranger cannot spend the API budget.
+// Environment variables (Vercel > Project > Settings > Environment Variables, Production and Preview):
+//   ANTHROPIC_API_KEY       required. A Claude API key (mark it Sensitive).
+//   CAPTURE_ALLOWED_EMAILS  required. Comma-separated emails allowed to use capture. Anyone else who signs in
+//                           gets a 403, so nobody else can spend the API budget.
 //   CAPTURE_MODEL           optional. Defaults to claude-sonnet-5-5.
-// Provided by Supabase: SUPABASE_URL (used only to check who is signed in).
-//
-// Deployed from the Supabase dashboard editor as a single file, so it has no local imports.
+// Already set for the app: VITE_SUPABASE_URL (used here only to check who is signed in).
 
-import Anthropic from 'npm:@anthropic-ai/sdk@0.131.0';
+import Anthropic from '@anthropic-ai/sdk';
 
 const DEFAULT_MODEL = 'claude-sonnet-5-5';
 const MAX_TEXT = 1000;
@@ -276,60 +275,59 @@ export function shape(message: Anthropic.Beta.BetaMessage, model: string): Captu
 
 // ---------- HTTP ----------
 
-const ORIGIN_OK = /^(https:\/\/cadence[a-z0-9-]*\.vercel\.app|http:\/\/localhost:\d+)$/;
+const json = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
 
-function cors(req: Request): Record<string, string> {
-  const origin = req.headers.get('origin') ?? '';
-  return {
-    'Access-Control-Allow-Origin': ORIGIN_OK.test(origin) ? origin : 'https://cadence-nova.vercel.app',
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    Vary: 'Origin',
-  };
+export interface Deps {
+  env: Record<string, string | undefined>;
+  /** For the sign-in check against Supabase Auth. */
+  fetch: typeof fetch;
+  /** A Claude client; built from ANTHROPIC_API_KEY when not given (tests pass a stand-in). */
+  client?: Anthropic;
 }
-
-const json = (req: Request, status: number, body: unknown) =>
-  new Response(JSON.stringify(body), { status, headers: { ...cors(req), 'Content-Type': 'application/json' } });
 
 /** Who is signed in, checked with Supabase Auth (not just decoded), or null. */
-async function signedInEmail(req: Request): Promise<string | null> {
+async function signedInEmail(req: Request, deps: Deps): Promise<string | null> {
   const token = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '');
-  const url = Deno.env.get('SUPABASE_URL');
-  // The app's public (publishable) key arrives with every request; the legacy anon key is the fallback.
-  const key = req.headers.get('apikey') ?? Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+  const url = deps.env.VITE_SUPABASE_URL ?? deps.env.SUPABASE_URL;
+  // The app's public (publishable) key: sent by the app, and also set in Vercel for the build.
+  const key = req.headers.get('apikey') ?? deps.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? deps.env.VITE_SUPABASE_ANON_KEY ?? '';
   if (!token || !url) return null;
-  const res = await fetch(`${url}/auth/v1/user`, { headers: { Authorization: `Bearer ${token}`, apikey: key } });
-  if (!res.ok) return null;
-  const user = (await res.json()) as { email?: string };
-  return user.email?.toLowerCase() ?? null;
+  try {
+    const res = await deps.fetch(`${url}/auth/v1/user`, { headers: { Authorization: `Bearer ${token}`, apikey: key } });
+    if (!res.ok) return null;
+    const user = (await res.json()) as { email?: string };
+    return user.email?.toLowerCase() ?? null;
+  } catch {
+    return null;
+  }
 }
 
-export async function handle(req: Request, client?: Anthropic): Promise<Response> {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors(req) });
-  if (req.method !== 'POST') return json(req, 405, { error: 'Use POST.' });
+export async function handle(req: Request, deps: Deps): Promise<Response> {
+  if (req.method !== 'POST') return json(405, { error: 'Use POST.' });
 
-  const email = await signedInEmail(req);
-  if (!email) return json(req, 401, { error: 'Sign in to use capture.' });
-  const allowed = (Deno.env.get('CAPTURE_ALLOWED_EMAILS') ?? '')
+  const email = await signedInEmail(req, deps);
+  if (!email) return json(401, { error: 'Sign in to use capture.' });
+  const allowed = (deps.env.CAPTURE_ALLOWED_EMAILS ?? '')
     .split(',')
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
-  if (!allowed.includes(email)) return json(req, 403, { error: 'Capture is not enabled for this account.' });
-  if (!client && !Deno.env.get('ANTHROPIC_API_KEY')) {
-    return json(req, 500, { error: 'Capture is not set up: the ANTHROPIC_API_KEY secret is missing.' });
+  if (!allowed.includes(email)) return json(403, { error: 'Capture is not enabled for this account.' });
+  if (!deps.client && !deps.env.ANTHROPIC_API_KEY) {
+    return json(500, { error: 'Capture is not set up: the ANTHROPIC_API_KEY setting is missing in Vercel.' });
   }
 
   let body: unknown;
   try {
     body = await req.json();
   } catch {
-    return json(req, 400, { error: 'Could not read the request.' });
+    return json(400, { error: 'Could not read the request.' });
   }
   const request = cleanRequest(body);
-  if (typeof request === 'string') return json(req, 400, { error: request });
+  if (typeof request === 'string') return json(400, { error: request });
 
-  const model = Deno.env.get('CAPTURE_MODEL') || DEFAULT_MODEL;
-  const anthropic = client ?? new Anthropic({ maxRetries: 2, timeout: 45_000 });
+  const model = deps.env.CAPTURE_MODEL || DEFAULT_MODEL;
+  const anthropic = deps.client ?? new Anthropic({ apiKey: deps.env.ANTHROPIC_API_KEY, maxRetries: 2, timeout: 25_000 });
   try {
     const message = await anthropic.beta.messages.create({
       model,
@@ -345,20 +343,22 @@ export async function handle(req: Request, client?: Anthropic): Promise<Response
       messages: [{ role: 'user', content: userMessage(request) }],
     });
     if (message.stop_reason === 'refusal') {
-      return json(req, 200, { actions: [], question: null, message: 'Claude declined to read that one. Try wording it differently.', model });
+      return json(200, { actions: [], question: null, message: 'Claude declined to read that one. Try wording it differently.', model });
     }
     if (message.stop_reason === 'max_tokens') {
-      return json(req, 200, { actions: [], question: null, message: 'That was too much at once. Try fewer things per message.', model });
+      return json(200, { actions: [], question: null, message: 'That was too much at once. Try fewer things per message.', model });
     }
-    return json(req, 200, shape(message, model));
+    return json(200, shape(message, model));
   } catch (e) {
-    if (e instanceof Anthropic.AuthenticationError) return json(req, 502, { error: 'The Claude API key was not accepted. Check the ANTHROPIC_API_KEY secret.' });
-    if (e instanceof Anthropic.RateLimitError) return json(req, 429, { error: 'Claude is busy or the monthly limit was reached. Try again later.' });
-    if (e instanceof Anthropic.BadRequestError) return json(req, 502, { error: `Claude could not take the request: ${e.message}` });
-    if (e instanceof Anthropic.APIError) return json(req, 502, { error: `Claude is not reachable right now (${e.status ?? 'network'}). Try again.` });
-    return json(req, 500, { error: 'Something went wrong while reading that.' });
+    if (e instanceof Anthropic.AuthenticationError) return json(502, { error: 'The Claude API key was not accepted. Check ANTHROPIC_API_KEY in Vercel.' });
+    if (e instanceof Anthropic.RateLimitError) return json(429, { error: 'Claude is busy or the monthly limit was reached. Try again later.' });
+    if (e instanceof Anthropic.BadRequestError) return json(502, { error: `Claude could not take the request: ${e.message}` });
+    if (e instanceof Anthropic.APIError) return json(502, { error: `Claude is not reachable right now (${e.status ?? 'network'}). Try again.` });
+    return json(500, { error: 'Something went wrong while reading that.' });
   }
 }
 
-// The test script imports this file with CAPTURE_TEST set, to call handle() directly.
-if (!Deno.env.get('CAPTURE_TEST')) Deno.serve((req) => handle(req));
+/** Vercel calls this for POST /api/capture. */
+export function POST(req: Request): Promise<Response> {
+  return handle(req, { env: process.env, fetch });
+}

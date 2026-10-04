@@ -1,6 +1,6 @@
 // Demo-mode stand-in for capture. A few fixed patterns, no AI, nothing leaves the device. It exists so the
 // capture flow (preview cards, follow-up question, confirm) can be tried and tested in demo mode; the real
-// reading is done by Claude through the capture Edge Function.
+// reading is done by Claude through the capture server function (api/capture.ts).
 
 import type { CaptureReply, CaptureRequest } from '../domain/capture';
 import { addDays } from '../domain/time';
