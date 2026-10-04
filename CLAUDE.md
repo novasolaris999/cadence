@@ -203,7 +203,7 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
 - Install app (owner request): Settings > App. `src/pwa/install.ts` (imported in main.tsx) keeps Chrome's
   `beforeinstallprompt` event from startup; the button shows Chrome's install dialog. Inside the installed app it
   says so; when Chrome has not offered installation (already installed, or another browser) it explains the
-  browser menu instead.
+  browser menu instead. (Speed dial and Install app approved and published to production.)
 - Dragging on Today: hold 250 ms on touch (or drag 6 px with a mouse). Collapsed stretches open during
   the drag so every 15 minutes has the same height; the page scroll is corrected so the block stays under
   the finger. Target blocks then ask for a scope: only this day, rest of this week, or this and all
