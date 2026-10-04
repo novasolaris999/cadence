@@ -163,6 +163,9 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   Weekly cards. Rule in `src/domain/novelty.ts`.
 - Make it daily: the add sheet's "Just this day" tab has a "Make it daily" switch that creates a 7-day
   routine directly; the routine form has an "Every day" button that selects all seven days.
+- Wake/sleep log sheet fix (published to production on its own, ahead of phase 9): a missing pair of braces in
+  `DayLogSheet` made it close as it opened (broken in phase 7). Hotfixes like this go to `main` by cherry-pick, then
+  `main` is merged back into the feature branch so the branch can still fast-forward `main` later.
 - Wake/sleep chips: "Woke" logs today's wake time. Before 12:00 the sleep chip reads "Slept last night"
   and logs against yesterday's date (the night it started).
 - Failed saves show a short notice (`src/components/Toaster.tsx`, via the QueryClient mutation cache);
