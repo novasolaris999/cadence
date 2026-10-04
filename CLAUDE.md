@@ -109,7 +109,7 @@ suggest what to do, and the scheduler stays plain rules.
 - [x] Phase 5: Goals history views: habit and routine history, routine grids on the Habits tab, paged reads (approved and published to production)
 - [x] Phase 6: Insights on real data: rolling windows, Routines section, Time/Done balance, honest empty states, editable on-time window (approved and published to production)
 - [x] Phase 8 (v2): To-do lists: Shopping / Errands / People lists, star + Priority view, dates and optional
-  times on Today and Weekly, rollover, To-do tab, migration 0003 (approved and published to production)
+  times on Today and Weekly, rollover, To-do tab, migration 0003 (0003 applied by owner; approved and published to production)
 - [ ] Phase 9 (v2): AI capture box (Claude Sonnet 5.5 via a Supabase Edge Function; owner confirms every action)
 - [x] Phase 7: Polish and final production check: accessibility (axe clean), security headers + CSP, offline copy and offline-safe saves, per-tab code loading (approved and published to production)
 
