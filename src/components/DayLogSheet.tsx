@@ -22,10 +22,12 @@ function Form({ target, onClose }: { target: DayLogTarget; onClose: () => void }
   const current = target.kind === 'wake' ? target.existing?.wake : target.existing?.sleep;
   const [value, setValue] = useState(formatTime(current ?? minutesOfDay()));
   const base: DayLog = target.existing ?? { date: target.date, wake: null, sleep: null };
-  const write = (m: number | null) =>
-    // Close at once: the time shows instantly and saves now, or when back online.
+  // Close at once: the time shows instantly and saves now, or when back online.
+  // (Braces matter here: without them, onClose ran on every render and the sheet closed as it opened.)
+  const write = (m: number | null) => {
     save.mutate({ ...base, [target.kind]: m });
     onClose();
+  };
 
   const title = target.kind === 'wake' ? 'Woke up' : 'Went to sleep';
   const subtitle =
