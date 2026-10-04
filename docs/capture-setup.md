@@ -9,17 +9,31 @@ You do this once. It takes about 10 minutes.
 ## Why this order
 
 1. The API key is shown only once when you create it, so you create it right before pasting it into Supabase.
-2. The spend limit goes on before the key is used, so nothing can ever cost more than you chose.
+2. The workspace and its spend limit come before the key, so nothing can ever cost more than you chose.
 3. The function and its secrets must both exist before the app's Capture button can work. Until then the app
    says "Capture is not set up yet" and nothing else is affected.
 
-## 1. Claude API key and spend limit (console.anthropic.com)
+## 1. Claude API key and spend limit (platform.claude.com / console.anthropic.com)
 
-1. Sign in at **console.anthropic.com** (this is separate from your Claude app subscription).
+1. Sign in to the Claude Console (separate from your Claude app subscription).
 2. **Billing**: add a small amount of credit, for example $5. Capture costs a fraction of a cent per request.
-3. **Settings > Limits**: set a monthly spend limit, for example $5.
-4. **Settings > API Keys > Create Key**: name it `cadence-capture`. Copy the key (starts with `sk-ant-`).
-   Keep the tab open until step 2.4 below.
+3. **Settings > Workspaces**: create a workspace named `cadence`, and give it a monthly spend limit (for example
+   $5). If the workspace has no limit setting, use **Settings > Limits** for the organization instead.
+   Why: Capture's spending is fenced off from anything else you do on the platform.
+4. **Settings > Service accounts**: create one named `cadence-capture` and add it to the `cadence` workspace.
+   Why: Anthropic recommends a service account for unattended servers. Its usage shows up under its own name,
+   and you can switch it off without touching your own access.
+5. **Settings > API keys > Create key**: name it `cadence-capture`, set **Linked account** to the
+   `cadence-capture` service account, scope it to the `cadence` workspace, and choose expiration **Never** (the spend
+   limit is the safety net; to rotate, create a new key, paste it into Supabase, then delete the old one).
+   Copy the key (starts with `sk-ant-`) and keep the tab open until step 2.2 below.
+
+Why not Workload Identity Federation (offered in the Console): it trades an identity token that the hosting
+platform gives the server (AWS, Google Cloud, GitHub Actions, Kubernetes) for short-lived access, so no key is
+stored. Supabase Edge Functions have no such platform identity. Federating your Cadence login token instead is
+possible in principle, but needs asymmetric JWT signing keys in Supabase, a Console issuer and rule, and code
+changes, and a rule set too broadly would let any Cadence account mint Claude access. The stored key here lives
+only in Supabase's encrypted secrets, behind the email allow-list and the spend limit.
 
 ## 2. Secrets in Supabase (supabase.com, your Cadence project)
 
