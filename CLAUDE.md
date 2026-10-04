@@ -193,8 +193,10 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   on a collapsed toggle means the current time is hidden inside it.
 - Adding: the + button and tapping an empty timeline row open one sheet with "Just this day" (one-off
   block) or "Repeats weekly" (hands off to the new-target form, prefilled via URL params).
-- The + on Today and Weekly (owner request) first asks what you are adding (`NewSheet`, shared with New on the
-  Habits tab): Habit, Routine, To-do, One-off block, and the starter routines. Habit and routine forms opened from
+- The + on Today (owner decision) is a speed dial (`AddMenu`): four small bubbles (Habit, Routine, To-do,
+  One-off block) rise above it one after another while the + turns into a ×; a light scrim, Escape, or a tap
+  elsewhere closes it; animation is off for reduced motion. The + on Weekly, and New on the Habits tab, open the
+  fuller `NewSheet` (the same choices with descriptions, plus starter routines; Habits shows Habit and Routine). Habit and routine forms opened from
   Today or Weekly carry `?back=<path>` and return there after saving or on the back arrow (`returnPath`,
   `withBack` in `src/domain/navigation.ts`; only in-app paths are accepted). Tapping an empty timeline row still
   opens the time-specific add sheet.

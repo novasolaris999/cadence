@@ -146,3 +146,29 @@
     animation: none;
   }
 }
+
+/* Speed-dial bubbles above the + on Today: each rises and fades in, one after another (delay set inline). */
+@utility bubble-in {
+  animation: bubble-in 180ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+  transform-origin: bottom right;
+}
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.85);
+  }
+}
+@utility scrim-in {
+  animation: scrim-in 150ms ease-out both;
+}
+@keyframes scrim-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bubble-in,
+  .scrim-in {
+    animation: none;
+  }
+}

@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router';
-import { NewSheet } from '../../components/NewSheet';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
+import { AddMenu } from '../../components/AddMenu';
+import { withBack } from '../../domain/navigation';
 import { BlockSheet, type BlockSheetMode } from '../../components/BlockSheet';
-import { Fab } from '../../components/Fab';
 import { DayLogSheet, type DayLogTarget } from '../../components/DayLogSheet';
 import { Icon } from '../../components/Icon';
 import { MoveScopeSheet, type PendingMove } from '../../components/MoveScopeSheet';
@@ -53,8 +53,9 @@ export function TodayScreen() {
   const updateTodo = useUpdateTodo();
   const [todoSheet, setTodoSheet] = useState<TodoSheetMode | null>(null);
   // The + asks what you are adding; habit and routine forms come back here after saving.
-  const [choosing, setChoosing] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const back = location.pathname + location.search;
   const [routineOpen, setRoutineOpen] = useState<string | null>(null);
   const openRoutine = items.find((v) => v.block.id === routineOpen) ?? null;
   const progress = dayProgress(blocks ?? []);
@@ -171,14 +172,13 @@ export function TodayScreen() {
         onClick={() => setLogTarget({ kind: 'sleep', date: sleepDate, existing: sleepLog })}
       />
 
-      <Fab label="Add" onClick={() => setChoosing(true)} />
-      <NewSheet
-        open={choosing}
-        onClose={() => setChoosing(false)}
-        title="Add"
-        back={location.pathname + location.search}
-        onTodo={() => setTodoSheet({ kind: 'new', date })}
-        onBlock={() => setSheet({ kind: 'add', date, start: nextSlot() })}
+      <AddMenu
+        choices={[
+          { label: 'Habit', icon: 'check_circle', onSelect: () => navigate(withBack('/goals/new', back)) },
+          { label: 'Routine', icon: 'event_repeat', onSelect: () => navigate(withBack('/goals/routine/new', back)) },
+          { label: 'To-do', icon: 'checklist', onSelect: () => setTodoSheet({ kind: 'new', date }) },
+          { label: 'One-off block', icon: 'event', onSelect: () => setSheet({ kind: 'add', date, start: nextSlot() }) },
+        ]}
       />
 
       <BlockSheet
