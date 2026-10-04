@@ -5,7 +5,7 @@
 // Screens never import either directly; they use the hooks in queries.ts.
 
 import type { MovePlan } from '../domain/moves';
-import type { Block, Category, DayLog, ISODate, Routine, Settings, Target } from '../domain/types';
+import type { Block, Category, DayLog, ISODate, Routine, Settings, Target, Todo, TodoList } from '../domain/types';
 
 export interface DataApi {
   mode: 'supabase' | 'demo';
@@ -44,6 +44,18 @@ export interface DataApi {
   /** Records that a week has been filled, so deleted blocks do not come back on the next visit. */
   markWeekPlanned(weekStart: ISODate): Promise<void>;
 
+  /** Your to-do lists. The first time, creates the defaults (Shopping, Errands, People). */
+  listTodoLists(): Promise<TodoList[]>;
+  saveTodoList(l: TodoList): Promise<void>;
+  /** The list's to-dos are kept, with no list. */
+  deleteTodoList(id: string): Promise<void>;
+  /** Every to-do, done or not (a personal list stays small). */
+  listTodos(): Promise<Todo[]>;
+  /** Insert or update by id. */
+  saveTodo(t: Todo): Promise<void>;
+  updateTodo(id: string, patch: Partial<Omit<Todo, 'id'>>): Promise<void>;
+  deleteTodos(ids: string[]): Promise<void>;
+
   listDayLogs(from: ISODate, to: ISODate): Promise<DayLog[]>;
   /** Creates or replaces the wake/sleep row for one date. */
   saveDayLog(log: DayLog): Promise<void>;
@@ -65,3 +77,10 @@ export const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   onTimeToleranceMin: 30,
 };
+
+/** Created the first time your lists are read. */
+export const DEFAULT_TODO_LISTS: Pick<TodoList, 'name' | 'icon' | 'sortOrder'>[] = [
+  { name: 'Shopping', icon: 'shopping_cart', sortOrder: 0 },
+  { name: 'Errands', icon: 'directions_car', sortOrder: 1 },
+  { name: 'People', icon: 'group', sortOrder: 2 },
+];

@@ -117,3 +117,34 @@ export interface Settings {
   theme: ThemePref;
   onTimeToleranceMin: number;
 }
+
+/** A to-do list: Shopping, Errands, People, or one you add. */
+export interface TodoList {
+  id: string;
+  name: string;
+  icon: string | null;
+  sortOrder: number;
+}
+
+/**
+ * A to-do. Not a block: habit rates and streaks never count it. With a day it shows on that day's list;
+ * with a time as well it sits on the timeline. Unfinished ones roll over to today (derived, never stored).
+ */
+export interface Todo {
+  id: string;
+  /** Null when its list was deleted ("No list"). */
+  listId: string | null;
+  title: string;
+  note: string | null;
+  /** Urgent and important: collected in the Priority view. */
+  starred: boolean;
+  dueDate: ISODate | null;
+  /** Requires dueDate; on the 15-minute grid. */
+  dueTime: Minutes | null;
+  /** Set exactly when dueTime is. */
+  durationMin: number | null;
+  /** Local wall clock 'YYYY-MM-DDTHH:MM' when done; null while still to do. */
+  completedAt: string | null;
+  sortOrder: number;
+  createdAt: string | null;
+}

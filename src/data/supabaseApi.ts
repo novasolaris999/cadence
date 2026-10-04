@@ -5,7 +5,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { DataApi } from './api';
-import { DEFAULT_CATEGORIES, newId } from './api';
+import { DEFAULT_CATEGORIES, DEFAULT_TODO_LISTS, newId } from './api';
 import {
   blockFromRow,
   blockPatchToRow,
@@ -16,6 +16,11 @@ import {
   dayLogToRow,
   routineFromRow,
   routineToRow,
+  todoFromRow,
+  todoListFromRow,
+  todoListToRow,
+  todoPatchToRow,
+  todoToRow,
   settingsFromRow,
   settingsToRow,
   targetFromRow,
@@ -24,6 +29,8 @@ import {
   type CategoryRow,
   type DayLogRow,
   type RoutineRow,
+  type TodoListRow,
+  type TodoRow,
   type SettingsRow,
   type TargetRow,
 } from './mappers';
@@ -77,6 +84,10 @@ const MISSING = new Set(['42703', '42P01', 'PGRST204', 'PGRST205']);
 let routinesMissing = false;
 /** True when the database still needs migration 0002 (routines). */
 export const needsRoutinesMigration = () => routinesMissing;
+let todosMissing = false;
+/** True when the database still needs migration 0003 (to-dos). */
+export const needsTodosMigration = () => todosMissing;
+const NEEDS_0003 = 'Database update needed: run migration 0003 (to-dos) in Supabase first.';
 
 const BLOCK_COLUMNS =
   'id, target_id, title, category_id, date, start_time, duration_min, status, completed_at, note, origin, scheduled_for, moved';
@@ -260,6 +271,57 @@ export function supabaseApi(db: SupabaseClient): DataApi {
       check(
         await db.from('day_logs').upsert({ user_id: await currentUserId(db), ...dayLogToRow(log) }, { onConflict: 'user_id,date' }),
       );
+    },
+
+    async listTodoLists() {
+      const select = () => db.from('todo_lists').select('id, name, icon, sort_order').order('sort_order').returns<TodoListRow[]>();
+      const res = await select();
+      if (res.error && MISSING.has(res.error.code)) {
+        todosMissing = true;
+        return [];
+      }
+      let rows = read(res);
+      if (rows.length === 0) {
+        check(
+          await db.from('todo_lists').upsert(
+            DEFAULT_TODO_LISTS.map((l) => ({ id: newId(), name: l.name, icon: l.icon, sort_order: l.sortOrder })),
+            { onConflict: 'user_id,name', ignoreDuplicates: true },
+          ),
+        );
+        rows = read(await select());
+      }
+      return rows.map(todoListFromRow);
+    },
+    async saveTodoList(l) {
+      if (todosMissing) throw new Error(NEEDS_0003);
+      check(await db.from('todo_lists').upsert(todoListToRow(l)));
+    },
+    async deleteTodoList(id) {
+      check(await db.from('todo_lists').delete().eq('id', id));
+    },
+    async listTodos() {
+      const res = await db
+        .from('todos')
+        .select('id, list_id, title, note, starred, due_date, due_time, duration_min, completed_at, sort_order, created_at')
+        .order('created_at')
+        .order('id')
+        .returns<TodoRow[]>();
+      if (res.error && MISSING.has(res.error.code)) {
+        todosMissing = true;
+        return [];
+      }
+      return read(res).map(todoFromRow);
+    },
+    async saveTodo(t) {
+      if (todosMissing) throw new Error(NEEDS_0003);
+      check(await db.from('todos').upsert(todoToRow(t)));
+    },
+    async updateTodo(id, patch) {
+      check(await db.from('todos').update(todoPatchToRow(patch)).eq('id', id));
+    },
+    async deleteTodos(ids) {
+      if (ids.length === 0) return;
+      check(await db.from('todos').delete().in('id', ids));
     },
 
     async listDayLogs(from, to) {

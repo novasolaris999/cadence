@@ -43,6 +43,30 @@ export const sampleApi: DataApi = {
     else sampleStore.routines.push(r);
   },
 
+  listTodoLists: async () => [...sampleStore.todoLists].sort((a, b) => a.sortOrder - b.sortOrder),
+  saveTodoList: async (l) => {
+    const i = sampleStore.todoLists.findIndex((x) => x.id === l.id);
+    if (i >= 0) sampleStore.todoLists[i] = l;
+    else sampleStore.todoLists.push(l);
+  },
+  deleteTodoList: async (id) => {
+    sampleStore.todoLists = sampleStore.todoLists.filter((l) => l.id !== id);
+    for (const t of sampleStore.todos) if (t.listId === id) t.listId = null;
+  },
+  listTodos: async () => sampleStore.todos.map((t) => ({ ...t })),
+  saveTodo: async (t) => {
+    const i = sampleStore.todos.findIndex((x) => x.id === t.id);
+    if (i >= 0) sampleStore.todos[i] = t;
+    else sampleStore.todos.push(t);
+  },
+  updateTodo: async (id, patch) => {
+    const t = sampleStore.todos.find((x) => x.id === id);
+    if (t) Object.assign(t, patch);
+  },
+  deleteTodos: async (ids) => {
+    sampleStore.todos = sampleStore.todos.filter((t) => !ids.includes(t.id));
+  },
+
   listBlocks: async (from, to) =>
     sampleStore.blocks.filter((b) => b.date >= from && b.date <= to).map((b) => ({ ...b })).sort(byDateStart),
   listTargetBlocks: async (targetId, from) =>

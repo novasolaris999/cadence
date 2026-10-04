@@ -175,3 +175,40 @@ describe('routines (0002)', () => {
     expect(left.rows[0]!.n).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('to-dos (0003)', () => {
+  const list = async (user: string, name: string) =>
+    (await as<{ id: string }>(user, `insert into public.todo_lists (name) values ('${name}') returning id`)).rows[0]!.id;
+  const todo = (user: string, cols: string, vals: string) => as(user, `insert into public.todos (title${cols}) values ('Milk'${vals})`);
+
+  it('keeps lists and to-dos private', async () => {
+    const shop = await list(ALICE, 'Shopping');
+    await todo(ALICE, ', list_id', `, '${shop}'`);
+    expect((await as(BOB, 'select * from public.todos')).rows).toEqual([]);
+    expect((await as(BOB, 'select * from public.todo_lists')).rows).toEqual([]);
+    await expect(as(null, 'select * from public.todos')).rejects.toThrow(/permission denied/);
+  });
+
+  it('will not put a to-do into another user’s list', async () => {
+    const bobs = await list(BOB, 'Bob list');
+    await expect(todo(ALICE, ', list_id', `, '${bobs}'`)).rejects.toThrow(/foreign key/);
+  });
+
+  it('needs a title, a day before a time, and a length with a time (on the 15-minute grid)', async () => {
+    await expect(as(ALICE, `insert into public.todos (title) values ('  ')`)).rejects.toThrow(/check/);
+    await expect(todo(ALICE, ', due_time, duration_min', `, '10:00', 60`)).rejects.toThrow(/check/);
+    await expect(todo(ALICE, ', due_date, due_time', `, '2026-10-10', '10:00'`)).rejects.toThrow(/check/);
+    await expect(todo(ALICE, ', due_date, due_time, duration_min', `, '2026-10-10', '10:10', 60`)).rejects.toThrow(/check/);
+    await expect(todo(ALICE, ', due_date, due_time, duration_min', `, '2026-10-10', '10:15', 60`)).resolves.toBeDefined();
+    await expect(todo(ALICE, ', due_date', `, '2026-10-10'`)).resolves.toBeDefined();
+  });
+
+  it('keeps the to-dos when their list is deleted', async () => {
+    const tmp = await list(ALICE, 'Temp');
+    await as(ALICE, `insert into public.todos (title, list_id) values ('Keep me', '${tmp}')`);
+    await as(ALICE, `delete from public.todo_lists where id = '${tmp}'`);
+    const left = await as<{ list_id: string | null }>(ALICE, `select list_id from public.todos where title = 'Keep me'`);
+    expect(left.rows).toEqual([{ list_id: null }]);
+  });
+});
+

@@ -2,8 +2,8 @@
 // Cadence with no signal shows your last-known day instead of a blank screen. TanStack Query writes the
 // copy after changes and restores it on start; fresh data replaces it as soon as the network is back.
 //
-// Kept small on purpose (localStorage holds about 5 MB): settings, categories, habits, routines, the
-// first-run setup flag, wake/sleep logs, and blocks for windows of up to 3 weeks (Today and Weekly).
+// Kept small on purpose (localStorage holds about 5 MB): settings, categories, habits, routines, to-dos
+// and their lists, the first-run setup flag, wake/sleep logs, and blocks for windows of up to 3 weeks (Today and Weekly).
 // Long history (Habits tab, history pages, Insights) stays online only. Demo data is never saved.
 
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
@@ -16,7 +16,7 @@ export const OFFLINE_CACHE_VERSION = 'v1';
 /** A copy older than this is not restored. */
 export const OFFLINE_MAX_AGE = 1000 * 60 * 60 * 24 * 30;
 
-const SMALL = new Set(['settings', 'categories', 'targets', 'routines']);
+const SMALL = new Set(['settings', 'categories', 'targets', 'routines', 'todos', 'todoLists']);
 
 /** Which cached reads are worth keeping offline (see the file comment). */
 export function keepOffline(key: readonly unknown[]): boolean {

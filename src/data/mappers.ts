@@ -2,7 +2,7 @@
 // (camelCase, minutes since midnight). Pure functions, unit tested.
 
 import { formatTime, parseTime } from '../domain/time';
-import type { Block, BlockOrigin, BlockStatus, Category, CategoryColor, DayLog, Routine, Settings, Target, ThemePref, Weekday } from '../domain/types';
+import type { Block, BlockOrigin, BlockStatus, Category, CategoryColor, DayLog, Routine, Settings, Target, ThemePref, Todo, TodoList, Weekday } from '../domain/types';
 
 export interface SettingsRow {
   wake_anchor: string;
@@ -169,6 +169,76 @@ export function routineToRow(r: Routine): RoutineRow {
     protected: r.protected,
     active: r.active,
   };
+}
+
+export interface TodoListRow {
+  id: string;
+  name: string;
+  icon: string | null;
+  sort_order: number;
+}
+export interface TodoRow {
+  id: string;
+  list_id: string | null;
+  title: string;
+  note: string | null;
+  starred: boolean;
+  due_date: string | null;
+  due_time: string | null;
+  duration_min: number | null;
+  completed_at: string | null;
+  sort_order: number;
+  /** Read only: set by the database on insert. */
+  created_at?: string;
+}
+
+export const todoListFromRow = (r: TodoListRow): TodoList => ({ id: r.id, name: r.name, icon: r.icon, sortOrder: r.sort_order });
+export const todoListToRow = (l: TodoList): TodoListRow => ({ id: l.id, name: l.name.trim(), icon: l.icon, sort_order: l.sortOrder });
+
+export const todoFromRow = (r: TodoRow): Todo => ({
+  id: r.id,
+  listId: r.list_id,
+  title: r.title,
+  note: r.note,
+  starred: r.starred,
+  dueDate: r.due_date,
+  dueTime: r.due_time === null ? null : parseTime(r.due_time),
+  durationMin: r.duration_min,
+  completedAt: stamp(r.completed_at),
+  sortOrder: r.sort_order,
+  createdAt: r.created_at ?? null,
+});
+
+export function todoToRow(t: Todo): TodoRow {
+  // A time needs a day and a length (the database checks this too): drop a half-set time.
+  const timed = t.dueDate !== null && t.dueTime !== null;
+  return {
+    id: t.id,
+    list_id: t.listId,
+    title: t.title.trim(),
+    note: t.note?.trim() || null,
+    starred: t.starred,
+    due_date: t.dueDate,
+    due_time: timed ? time(t.dueTime!) : null,
+    duration_min: timed ? (t.durationMin ?? 30) : null,
+    completed_at: t.completedAt,
+    sort_order: t.sortOrder,
+  };
+}
+
+/** Converts only the fields present in a partial update. */
+export function todoPatchToRow(p: Partial<Omit<Todo, 'id'>>): Partial<TodoRow> {
+  const r: Partial<TodoRow> = {};
+  if (p.listId !== undefined) r.list_id = p.listId;
+  if (p.title !== undefined) r.title = p.title.trim();
+  if (p.note !== undefined) r.note = p.note;
+  if (p.starred !== undefined) r.starred = p.starred;
+  if (p.dueDate !== undefined) r.due_date = p.dueDate;
+  if (p.dueTime !== undefined) r.due_time = p.dueTime === null ? null : time(p.dueTime);
+  if (p.durationMin !== undefined) r.duration_min = p.durationMin;
+  if (p.completedAt !== undefined) r.completed_at = p.completedAt;
+  if (p.sortOrder !== undefined) r.sort_order = p.sortOrder;
+  return r;
 }
 
 export const blockFromRow = (r: BlockRow): Block => ({

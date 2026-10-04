@@ -6,7 +6,7 @@
 
 import { useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type { DayMovePlan, GroupDayMovePlan, MovePlan } from '../domain/moves';
-import type { Block, Category, DayLog, ISODate, Routine, Settings, Target } from '../domain/types';
+import type { Block, Category, DayLog, ISODate, Routine, Settings, Target, Todo, TodoList } from '../domain/types';
 import { ensureSetup, getApi, isDemo, setDemo } from './index';
 import { localNowStamp } from './localStamp';
 import { isAnytime } from '../domain/routines';
@@ -23,6 +23,8 @@ export const keys = {
   categories: () => [mode(), 'categories'] as const,
   targets: () => [mode(), 'targets'] as const,
   routines: () => [mode(), 'routines'] as const,
+  todos: () => [mode(), 'todos'] as const,
+  todoLists: () => [mode(), 'todoLists'] as const,
   blocks: (from: ISODate, to: ISODate) => [mode(), 'blocks', from, to] as const,
   allBlocks: () => [mode(), 'blocks'] as const,
   targetBlocks: (targetId: string | null, from: ISODate) => [mode(), 'blocks', 'target', targetId, from] as const,
@@ -211,7 +213,20 @@ interface DayLogSave {
   mode: Mode;
   log: DayLog;
 }
-export const OFFLINE_KEYS = { blocks: ['offline', 'blockChanges'], dayLog: ['offline', 'dayLog'] } as const;
+export const OFFLINE_KEYS = {
+  blocks: ['offline', 'blockChanges'],
+  dayLog: ['offline', 'dayLog'],
+  todo: ['offline', 'todoChange'],
+} as const;
+interface TodoChange {
+  mode: Mode;
+  id: string;
+  patch: Partial<Omit<Todo, 'id'>>;
+}
+async function sendTodoChange({ mode: m, id, patch }: TodoChange) {
+  if (getApi().mode !== m) return;
+  await getApi().updateTodo(id, patch);
+}
 
 async function sendBlockChanges({ mode: m, changes }: BlockChanges) {
   if (getApi().mode !== m) return;
@@ -227,6 +242,10 @@ export function registerOfflineSaves(qc: QueryClient) {
   qc.setMutationDefaults(OFFLINE_KEYS.blocks, {
     mutationFn: sendBlockChanges,
     onSettled: (_d, _e, v) => qc.invalidateQueries({ queryKey: [v.mode, 'blocks'] }),
+  });
+  qc.setMutationDefaults(OFFLINE_KEYS.todo, {
+    mutationFn: sendTodoChange,
+    onSettled: (_d, _e, v) => qc.invalidateQueries({ queryKey: [v.mode, 'todos'] }),
   });
   qc.setMutationDefaults(OFFLINE_KEYS.dayLog, {
     mutationFn: sendDayLog,
@@ -406,3 +425,93 @@ export function useSetBlocksStatus() {
       }),
   };
 }
+
+// ---------- To-dos ----------
+
+export function useTodoLists() {
+  return useQuery<TodoList[]>({ queryKey: keys.todoLists(), queryFn: () => getApi().listTodoLists() });
+}
+
+export function useTodos() {
+  return useQuery<Todo[]>({ queryKey: keys.todos(), queryFn: () => getApi().listTodos() });
+}
+
+/** Applies a change to the cached to-dos right away; returns a function that undoes it. */
+function patchCachedTodos(qc: QueryClient, apply: (list: Todo[]) => Todo[]) {
+  const key = keys.todos();
+  const before = qc.getQueryData<Todo[]>(key);
+  qc.setQueryData<Todo[]>(key, (list) => (list ? apply(list) : list));
+  return () => qc.setQueryData(key, before);
+}
+
+/**
+ * Changes one to-do (tick, move to another day or time, star): shows at once; saved now, or kept on
+ * the device and sent when back online (like habit ticks).
+ */
+export function useUpdateTodo() {
+  const qc = useQueryClient();
+  const m = useMutation({
+    mutationKey: OFFLINE_KEYS.todo,
+    mutationFn: sendTodoChange,
+    onMutate: async ({ id, patch }: TodoChange) => {
+      await qc.cancelQueries({ queryKey: keys.todos() });
+      return { undo: patchCachedTodos(qc, (list) => list.map((t) => (t.id === id ? { ...t, ...patch } : t))) };
+    },
+    onError: (_e, _v, ctx) => ctx?.undo(),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.todos() }),
+  });
+  return { ...m, mutate: (id: string, patch: Partial<Omit<Todo, 'id'>>) => m.mutate({ mode: mode(), id, patch }) };
+}
+
+/** Tick or untick: done records the local time it was done. */
+export function useToggleTodo() {
+  const update = useUpdateTodo();
+  return (t: Todo) => update.mutate(t.id, { completedAt: t.completedAt ? null : localNowStamp() });
+}
+
+/** Create or edit a to-do. Shows at once. */
+export function useSaveTodo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (t: Todo) => getApi().saveTodo(t),
+    onMutate: async (t) => {
+      await qc.cancelQueries({ queryKey: keys.todos() });
+      return { undo: patchCachedTodos(qc, (list) => (list.some((x) => x.id === t.id) ? list.map((x) => (x.id === t.id ? t : x)) : [...list, t])) };
+    },
+    onError: (_e, _v, ctx) => ctx?.undo(),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.todos() }),
+  });
+}
+
+export function useDeleteTodos() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => getApi().deleteTodos(ids),
+    onMutate: async (ids) => {
+      await qc.cancelQueries({ queryKey: keys.todos() });
+      return { undo: patchCachedTodos(qc, (list) => list.filter((t) => !ids.includes(t.id))) };
+    },
+    onError: (_e, _v, ctx) => ctx?.undo(),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.todos() }),
+  });
+}
+
+export function useSaveTodoList() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (l: TodoList) => getApi().saveTodoList(l),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.todoLists() }),
+  });
+}
+
+export function useDeleteTodoList() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => getApi().deleteTodoList(id),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: keys.todoLists() });
+      qc.invalidateQueries({ queryKey: keys.todos() });
+    },
+  });
+}
+

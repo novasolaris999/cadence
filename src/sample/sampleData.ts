@@ -2,7 +2,7 @@
 // Generated relative to the real current date, so "today", the now line, and history all look live.
 // Outcomes come from a seeded random generator, so every reload shows the same history.
 
-import type { Block, Category, DayLog, Routine, Settings, Target } from '../domain/types';
+import type { Block, Category, DayLog, Routine, Settings, Target, Todo, TodoList } from '../domain/types';
 import { addDays, isoWeekday, minutesOfDay, startOfWeek, today as todayISO, dateRange } from '../domain/time';
 import { targetDays } from '../domain/schedule';
 import { isAnytime, withRoutine } from '../domain/routines';
@@ -312,4 +312,38 @@ export function buildSampleDayLogs(now = new Date()): DayLog[] {
     });
   }
   return logs;
+}
+
+export const sampleTodoLists: TodoList[] = [
+  { id: 'l-shop', name: 'Shopping', icon: 'shopping_cart', sortOrder: 0 },
+  { id: 'l-errands', name: 'Errands', icon: 'directions_car', sortOrder: 1 },
+  { id: 'l-people', name: 'People', icon: 'group', sortOrder: 2 },
+];
+
+/** Sample to-dos, placed around today so rollover, timed, and starred items all show. */
+export function buildSampleTodos(now = new Date()): Todo[] {
+  const today = todayISO(now);
+  const t = (p: Partial<Todo> & Pick<Todo, 'id' | 'title'>): Todo => ({
+    listId: 'l-shop',
+    note: null,
+    starred: false,
+    dueDate: null,
+    dueTime: null,
+    durationMin: null,
+    completedAt: null,
+    sortOrder: 0,
+    createdAt: null,
+    ...p,
+  });
+  return [
+    t({ id: 'td-milk', title: 'Oat milk', dueDate: today }),
+    t({ id: 'td-shoes', title: 'Running shoes', note: 'Size 10, try in store' }),
+    t({ id: 'td-gift', title: 'Birthday gift for Maya', starred: true, dueDate: addDays(today, 3) }),
+    t({ id: 'td-bulbs', title: 'Light bulbs', completedAt: `${addDays(today, -1)}T18:20` }),
+    t({ id: 'td-passport', title: 'Renew passport', listId: 'l-errands', starred: true, dueDate: addDays(today, -2) }),
+    t({ id: 'td-dry', title: 'Pick up dry cleaning', listId: 'l-errands', dueDate: addDays(today, 1) }),
+    t({ id: 'td-post', title: 'Post office: return parcel', listId: 'l-errands', dueDate: today, dueTime: 13 * 60, durationMin: 30 }),
+    t({ id: 'td-sam', title: 'Coffee with Sam', listId: 'l-people', dueDate: addDays(today, 2), dueTime: 10 * 60, durationMin: 60 }),
+    t({ id: 'td-mom', title: 'Call Mom', listId: 'l-people', starred: true }),
+  ];
 }

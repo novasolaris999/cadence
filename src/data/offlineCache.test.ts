@@ -4,7 +4,7 @@ import { keepOffline } from './offlineCache';
 describe('keepOffline', () => {
   it('keeps the small real-data reads and the setup flag', () => {
     expect(keepOffline(['setup'])).toBe(true);
-    for (const k of ['settings', 'categories', 'targets', 'routines']) expect(keepOffline(['supabase', k])).toBe(true);
+    for (const k of ['settings', 'categories', 'targets', 'routines', 'todos', 'todoLists']) expect(keepOffline(['supabase', k])).toBe(true);
   });
   it('keeps blocks and logs for Today and Weekly windows, not long history', () => {
     expect(keepOffline(['supabase', 'blocks', '2026-10-05', '2026-10-11'])).toBe(true);
