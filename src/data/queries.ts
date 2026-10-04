@@ -6,9 +6,11 @@
 
 import { useMutation, useQueries, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import type { DayMovePlan, GroupDayMovePlan, MovePlan } from '../domain/moves';
+import { buildBlock, buildHabit, buildRoutine, buildTodo, type CaptureContext, type CaptureRequest, type Proposal } from '../domain/capture';
 import type { Block, Category, DayLog, ISODate, Routine, Settings, Target, Todo, TodoList } from '../domain/types';
 import { ensureSetup, getApi, isDemo, setDemo } from './index';
 import { localNowStamp } from './localStamp';
+import { newId } from './api';
 import { isAnytime } from '../domain/routines';
 import { afterTargetSaved, applyDayMove, applyGroupDayMove, ensureWeek, rerunWeek, saveRoutine } from './scheduling';
 import { addDays, formatDayShort, formatTime, startOfWeek, today as todayISO } from '../domain/time';
@@ -515,3 +517,54 @@ export function useDeleteTodoList() {
   });
 }
 
+
+// ---------- Capture ----------
+
+/** Sends a capture request (nothing is saved). Errors are thrown with a message ready to show. */
+export const requestCapture = (req: CaptureRequest) => getApi().capture(req);
+
+/** What capture needs to know about your things: names for Claude, and the records to match them back to. */
+export function useCaptureContext(): { request: CaptureRequest['context']; match: CaptureContext; targets: Target[] } {
+  const { data: lists = [] } = useTodoLists();
+  const { data: categories = [] } = useCategories();
+  const { data: routines = [] } = useRoutines();
+  const { data: targets = [] } = useTargets();
+  const active = routines.filter((r) => r.active);
+  return {
+    request: {
+      lists: lists.map((l) => l.name),
+      categories: categories.map((c) => c.name),
+      routines: active.map((r) => ({ name: r.name, days: r.preferredDays, start: formatTime(r.preferredStart) })),
+      habits: targets.filter((t) => t.active).map((t) => t.name),
+    },
+    match: { lists, categories, routines },
+    targets,
+  };
+}
+
+/** Saves confirmed capture proposals through the normal paths (blocks are created for habits and routines). */
+export function useApplyCapture() {
+  const saveTodo = useSaveTodo();
+  const saveTarget = useSaveTarget();
+  const saveRoutineM = useSaveRoutine();
+  const createBlock = useCreateBlock();
+  const { match, targets } = useCaptureContext();
+  return async (proposals: Proposal[]) => {
+    const createdAt = new Date().toISOString(); // an instant, not a schedule date
+    // Habits joining the same routine in one go each go after the last one.
+    const nextOrder = new Map<string, number>();
+    for (const p of proposals) {
+      if (p.kind === 'todo') await saveTodo.mutateAsync(buildTodo(p, newId(), createdAt));
+      else if (p.kind === 'block') await createBlock.mutateAsync(buildBlock(p, newId()));
+      else if (p.kind === 'routine') await saveRoutineM.mutateAsync({ ...buildRoutine(p, newId, createdAt), removed: [] });
+      else {
+        const routine = p.routineId ? (match.routines.find((r) => r.id === p.routineId) ?? null) : null;
+        const order = routine
+          ? (nextOrder.get(routine.id) ?? targets.filter((t) => t.routineId === routine.id && t.active).length)
+          : 0;
+        if (routine) nextOrder.set(routine.id, order + 1);
+        await saveTarget.mutateAsync(buildHabit(p, newId(), createdAt, routine, order));
+      }
+    }
+  };
+}

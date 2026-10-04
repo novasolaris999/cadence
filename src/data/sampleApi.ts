@@ -1,6 +1,7 @@
 // Demo implementation: in-memory sample data. Changes last until reload.
 import type { DataApi } from './api';
 import { sampleStore } from '../sample/store';
+import { demoCapture } from '../sample/demoCapture';
 import { addDays, startOfWeek, today } from '../domain/time';
 
 const byDateStart = (a: { date: string; start: number }, b: { date: string; start: number }) =>
@@ -66,6 +67,7 @@ export const sampleApi: DataApi = {
   deleteTodos: async (ids) => {
     sampleStore.todos = sampleStore.todos.filter((t) => !ids.includes(t.id));
   },
+  capture: async (req) => demoCapture(req),
 
   listBlocks: async (from, to) =>
     sampleStore.blocks.filter((b) => b.date >= from && b.date <= to).map((b) => ({ ...b })).sort(byDateStart),

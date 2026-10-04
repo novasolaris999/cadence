@@ -4,6 +4,7 @@
 //                build container). The header shows a "Demo data" badge in this mode.
 // Screens never import either directly; they use the hooks in queries.ts.
 
+import type { CaptureReply, CaptureRequest } from '../domain/capture';
 import type { MovePlan } from '../domain/moves';
 import type { Block, Category, DayLog, ISODate, Routine, Settings, Target, Todo, TodoList } from '../domain/types';
 
@@ -59,6 +60,12 @@ export interface DataApi {
   listDayLogs(from: ISODate, to: ISODate): Promise<DayLog[]>;
   /** Creates or replaces the wake/sleep row for one date. */
   saveDayLog(log: DayLog): Promise<void>;
+
+  /**
+   * Capture: reads a typed request and returns proposals (nothing is saved). Real mode asks Claude through the
+   * `capture` Edge Function; demo mode uses a simple stand-in on the device.
+   */
+  capture(req: CaptureRequest): Promise<CaptureReply>;
 }
 
 export const DEFAULT_CATEGORIES: Pick<Category, 'name' | 'color' | 'sortOrder'>[] = [

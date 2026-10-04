@@ -3,7 +3,7 @@
 // there is no "where user_id = me" here: the database adds it. New rows get user_id from
 // the signed-in session through the column default (auth.uid()).
 
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { FunctionsFetchError, FunctionsHttpError, type SupabaseClient } from '@supabase/supabase-js';
 import type { DataApi } from './api';
 import { DEFAULT_CATEGORIES, DEFAULT_TODO_LISTS, newId } from './api';
 import {
@@ -35,6 +35,7 @@ import {
   type TargetRow,
 } from './mappers';
 import { formatTime } from '../domain/time';
+import type { CaptureReply } from '../domain/capture';
 
 /** Throws Supabase errors so TanStack Query can show and retry them. */
 function check(res: { error: { message: string; code?: string } | null }): void {
@@ -322,6 +323,19 @@ export function supabaseApi(db: SupabaseClient): DataApi {
     async deleteTodos(ids) {
       if (ids.length === 0) return;
       check(await db.from('todos').delete().in('id', ids));
+    },
+
+    async capture(req) {
+      const { data, error } = await db.functions.invoke<CaptureReply>('capture', { body: req });
+      if (!error && data) return data;
+      if (error instanceof FunctionsHttpError) {
+        const res = error.context as Response;
+        if (res.status === 404) throw new Error('Capture is not set up yet: the capture function is not deployed in Supabase.');
+        const body = (await res.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(body?.error ?? `Capture failed (${res.status}).`);
+      }
+      if (error instanceof FunctionsFetchError) throw new Error('Could not reach capture. Check your connection and try again.');
+      throw new Error('Capture failed. Try again.');
     },
 
     async listDayLogs(from, to) {

@@ -45,6 +45,10 @@ Cadence is a personal daily routine and goal tracker for one user.
 - Without these vars the app always runs on in-memory demo data (`src/data/sampleApi.ts`) and shows a
   "Demo" badge. This is how screenshot checks run in the build container.
 - One-time Supabase setup steps for the owner: `docs/supabase-setup.md`. Google sign-in: `docs/google-signin-setup.md`.
+- Capture (phase 9) secrets live in Supabase > Edge Functions > Secrets, never in Vercel or the repo:
+  `ANTHROPIC_API_KEY`, `CAPTURE_ALLOWED_EMAILS` (only these accounts may use capture), optional `CAPTURE_MODEL`.
+  Setup steps: `docs/capture-setup.md`. The owner deploys `supabase/functions/capture/index.ts` by pasting it into
+  the Supabase dashboard editor (single file, no local imports), so any change to it must be re-pasted: say so.
 
 ## Conventions
 
@@ -111,6 +115,7 @@ suggest what to do, and the scheduler stays plain rules.
 - [x] Phase 8 (v2): To-do lists: Shopping / Errands / People lists, star + Priority view, dates and optional
   times on Today and Weekly, rollover, To-do tab, migration 0003 (0003 applied by owner; approved and published to production)
 - [ ] Phase 9 (v2): AI capture box (Claude Sonnet 5.5 via a Supabase Edge Function; owner confirms every action)
+  (built; awaiting owner's setup per `docs/capture-setup.md` and review)
 - [x] Phase 7: Polish and final production check: accessibility (axe clean), security headers + CSP, offline copy and offline-safe saves, per-tab code loading (approved and published to production)
 
 ## Decisions log
@@ -319,7 +324,35 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
     "To-do", that switches to the to-do sheet with the typed title, day, and time.
   - Ticks and stars are offline-safe saves (`OFFLINE_KEYS.todo`). Before 0003 is applied, reads return nothing,
     the To-do tab shows "Database update needed", and saves say so.
-- AI capture model (owner decision, phase 9): Claude Sonnet 5.5 (`claude-sonnet-5-5`); the owner may switch later.
+- AI capture model (owner decision, phase 9): Claude Sonnet 5.5 (`claude-sonnet-5-5`); the owner may switch later
+  (secret `CAPTURE_MODEL`, no code change).
+- Capture, how it works (phase 9):
+  - Edge Function `supabase/functions/capture/index.ts` (Deno, `npm:@anthropic-ai/sdk@0.131.0`). It checks the
+    caller with Supabase Auth (`/auth/v1/user`, using the request's `apikey`), then the email allow-list, then calls
+    Claude once: strict tools `add_todo`, `add_habit`, `add_routine`, `add_block`, `ask_followup`; `tool_choice` auto
+    (forced tool use is a 400 on Sonnet 5.5); effort `low`; cached system prompt; server-side refusal fallback
+    (`fallbacks: 'default'`, beta `server-side-fallback-2026-07-01`). It only returns proposals and never writes data.
+    Refusal, max_tokens, bad key, rate limit, and other errors come back as plain messages. Input capped at 1000
+    characters, 6 turns of conversation, and short name lists.
+  - The app sends the words, today's date and time, and only the NAMES of lists, categories, routines (with days and
+    start), and habits. No ids, history, or notes leave the device.
+  - Follow-up questions: the reply is either proposals or one question with answer options. The app keeps the
+    conversation (`transcript`) and sends it with the answer; the function folds it into one user message (stateless,
+    append-only).
+  - `src/domain/capture.ts` treats Claude's output as untrusted: dates must be real, times are rounded to the
+    15-minute grid, lengths clamped, lists and categories matched by name (unknown list: first list), a habit
+    without days/frequency or a timed habit without a time is dropped, a habit joining a routine takes the routine's
+    days and time and goes last. Dropped parts are counted and shown. Quick habits outside a routine go to Anytime;
+    the prompt tells Claude to use 15 minutes when a time is given for something quick.
+  - Header button (pencil in a square, "Capture") on every screen opens `CaptureSheet`: textarea (keyboard mic for
+    dictation; the web microphone API stays blocked by Permissions-Policy), example chips, conversation bubbles,
+    preview cards (tap to leave one out), Start over, Add n. Saving goes through the normal hooks
+    (`useApplyCapture`), so habits and routines get their blocks and their usual "first block" toast. Needs a
+    connection; offline it says so.
+  - Demo mode uses `src/sample/demoCapture.ts`, a few fixed patterns on the device, labelled as a stand-in.
+  - `supabase/functions/capture/check.deno.ts` runs the function against stand-ins for Claude and Supabase Auth
+    (install Deno with `npm install deno` in a scratch folder without a package.json; set `DENO_CERT` to the proxy
+    CA bundle in the cloud container).
 
 ## Visual check workflow
 
