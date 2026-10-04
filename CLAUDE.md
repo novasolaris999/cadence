@@ -193,6 +193,15 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   on a collapsed toggle means the current time is hidden inside it.
 - Adding: the + button and tapping an empty timeline row open one sheet with "Just this day" (one-off
   block) or "Repeats weekly" (hands off to the new-target form, prefilled via URL params).
+- The + on Today and Weekly (owner request) first asks what you are adding (`NewSheet`, shared with New on the
+  Habits tab): Habit, Routine, To-do, One-off block, and the starter routines. Habit and routine forms opened from
+  Today or Weekly carry `?back=<path>` and return there after saving or on the back arrow (`returnPath`,
+  `withBack` in `src/domain/navigation.ts`; only in-app paths are accepted). Tapping an empty timeline row still
+  opens the time-specific add sheet.
+- Install app (owner request): Settings > App. `src/pwa/install.ts` (imported in main.tsx) keeps Chrome's
+  `beforeinstallprompt` event from startup; the button shows Chrome's install dialog. Inside the installed app it
+  says so; when Chrome has not offered installation (already installed, or another browser) it explains the
+  browser menu instead.
 - Dragging on Today: hold 250 ms on touch (or drag 6 px with a mouse). Collapsed stretches open during
   the drag so every 15 minutes has the same height; the page scroll is corrected so the block stays under
   the finger. Target blocks then ask for a scope: only this day, rest of this week, or this and all

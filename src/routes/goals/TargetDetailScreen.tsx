@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { returnPath } from '../../domain/navigation';
 import { cx } from '../../components/cx';
 import { catBg, catSoft } from '../../components/categoryColor';
 import { Icon, isIconName } from '../../components/Icon';
@@ -72,6 +73,8 @@ function TargetDetailScreenForm() {
   const { targetId } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  // Opened from Today or Weekly (?back=...): saving returns there.
+  const back = returnPath(params.get('back'));
   const now = useNow();
   const { data: targets, isLoading } = useTargets();
   const { data: categories = [] } = useCategories();
@@ -124,7 +127,7 @@ function TargetDetailScreenForm() {
 
   // A quick habit outside a routine has no time: it shows under "Anytime".
   const prepared = (t: Target) => (t.durationMin === QUICK && !t.routineId ? { ...t, preferredStart: 0, windowEnd: null } : t);
-  const commit = (t: Target) => save.mutate(prepared(t), { onSuccess: () => navigate('/goals') });
+  const commit = (t: Target) => save.mutate(prepared(t), { onSuccess: () => navigate(back) });
   /** Saves, then starts the next habit with the same settings: only the name is cleared. */
   const commitAndNext = () =>
     save.mutate(prepared(draft), {
@@ -139,7 +142,7 @@ function TargetDetailScreenForm() {
     <Page>
       <div className="flex flex-col gap-4 pb-20">
         <div className="flex items-center gap-2">
-          <Link to="/goals" aria-label="Back to habits" className="rounded-full p-1.5 text-muted hover:bg-surface-2">
+          <Link to={back} aria-label={back === '/goals' ? 'Back to habits' : 'Back'} className="rounded-full p-1.5 text-muted hover:bg-surface-2">
             <Icon name="arrow_back" />
           </Link>
           <div className="flex min-w-0 flex-col">

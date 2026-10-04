@@ -11,6 +11,7 @@ import '@fontsource-variable/plus-jakarta-sans';
 import './styles/index.css';
 import { AuthProvider } from './data/auth';
 import { router } from './router';
+import './pwa/install'; // catches Chrome's install offer at startup, for Settings > Install app
 import { ThemeProvider } from './theme/ThemeProvider';
 
 const queryClient = new QueryClient({

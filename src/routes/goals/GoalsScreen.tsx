@@ -1,15 +1,12 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Link, useSearchParams } from 'react-router';
+import { useSearchParams } from 'react-router';
 import { cx } from '../../components/cx';
 import { Icon } from '../../components/Icon';
 import { Page } from '../../components/Page';
 import { PeriodNav, SCOPES } from '../../components/PeriodNav';
 import { StatTile } from '../../components/StatTile';
-import { Sheet } from '../../components/Sheet';
-import { RoutineIcon } from '../../components/RoutineParts';
+import { NewSheet } from '../../components/NewSheet';
 import { useBlocks, useCategories, useRoutines, useTargets } from '../../data/queries';
-import { ROUTINE_TEMPLATES, habitLength, routineMinutes } from '../../domain/routines';
-import { formatDuration } from '../../domain/time';
 import { overallStreak, pct, tally } from '../../domain/metrics';
 import { addDays, formatDateSpan, periodContaining, shiftPeriod, type Scope } from '../../domain/time';
 import { useNow } from '../../theme/useNow';
@@ -205,72 +202,3 @@ function ListTitle({ icon, children }: { icon: 'event_repeat' | 'check_circle'; 
 }
 
 /** "New": one habit, or a routine (blank or from a starter you then edit). */
-function NewSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  return (
-    <Sheet open={open} onClose={onClose} title="New">
-      <div className="flex flex-col gap-2">
-        <Link
-          to="/goals/new"
-          onClick={onClose}
-          className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-3 hover:border-primary"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary-ink">
-            <Icon name="check_circle" size={22} />
-          </span>
-          <span className="flex min-w-0 flex-col">
-            <span className="text-label-lg font-semibold">Habit</span>
-            <span className="text-body-sm text-muted">One thing on its days: Gym, Padel, or a quick tick like Vitamin D</span>
-          </span>
-        </Link>
-        <Link
-          to="/goals/routine/new"
-          onClick={onClose}
-          className="flex items-center gap-3 rounded-xl border border-border bg-surface-2 p-3 hover:border-primary"
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary-ink">
-            <Icon name="event_repeat" size={22} />
-          </span>
-          <span className="flex min-w-0 flex-col">
-            <span className="text-label-lg font-semibold">Routine</span>
-            <span className="text-body-sm text-muted">Habits you do together, in order, like a superset</span>
-          </span>
-        </Link>
-
-        <span className="mt-2 text-label-sm font-semibold uppercase tracking-wider text-faint">Start from a routine</span>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {ROUTINE_TEMPLATES.map((t) => {
-            const minutes = routineMinutes(t.habits);
-            return (
-              <Link
-                key={t.key}
-                to={`/goals/routine/new?template=${t.key}`}
-                onClick={onClose}
-                className="flex flex-col gap-2 rounded-xl border border-border bg-surface p-3 shadow-card hover:border-primary"
-              >
-                <span className="flex items-center gap-2.5">
-                  <RoutineIcon icon={t.icon} category={null} size={32} />
-                  <span className="flex min-w-0 flex-col">
-                    <span className="text-label-lg font-semibold">{t.name}</span>
-                    <span className="text-label-sm text-faint">
-                      {t.habits.length} habits · {minutes ? formatDuration(minutes) : 'quick'}
-                    </span>
-                  </span>
-                </span>
-                <span className="flex flex-wrap gap-1">
-                  {t.habits.map((h) => (
-                    <span key={h.name} className="rounded-full bg-surface-2 px-2 py-0.5 text-label-sm text-muted">
-                      {h.name}
-                      <span className="text-faint"> · {habitLength(h.durationMin)}</span>
-                    </span>
-                  ))}
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-        <p className="mt-1 text-label-sm text-faint">Starters are a first draft: rename, reorder, or remove anything before you save.</p>
-      </div>
-    </Sheet>
-  );
-}
-

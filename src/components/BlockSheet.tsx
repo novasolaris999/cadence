@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useLocation, useNavigate } from 'react-router';
 import { newId } from '../data/api';
 import { statusPatch, useCategories, useCreateBlock, useDeleteBlock, useSaveTarget, useUpdateBlock } from '../data/queries';
 import { formatDayShort, formatDuration, isoWeekday } from '../domain/time';
@@ -43,6 +43,7 @@ export function BlockSheet({ mode, onClose, onMove, onTodo }: Props) {
 
 function AddForm({ date, start: initialStart, onClose, onTodo }: { date: ISODate; start: Minutes; onClose: () => void; onTodo: Props['onTodo'] }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: categories = [] } = useCategories();
   const create = useCreateBlock();
   const saveTarget = useSaveTarget();
@@ -61,6 +62,7 @@ function AddForm({ date, start: initialStart, onClose, onTodo }: { date: ISODate
       if (title.trim()) p.set('name', title.trim());
       if (categoryId) p.set('category', categoryId);
       onClose();
+      p.set('back', location.pathname + location.search); // saving the habit returns here
       navigate(`/goals/new?${p}`);
       return;
     }

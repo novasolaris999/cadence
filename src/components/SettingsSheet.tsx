@@ -12,6 +12,7 @@ import { Icon } from './Icon';
 import { SegmentedControl } from './SegmentedControl';
 import { Sheet } from './Sheet';
 import { Toggle } from './Toggle';
+import { useInstall } from '../pwa/install';
 
 /** Opened from the avatar: theme, wake/sleep anchors, categories, and your account. */
 export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -70,6 +71,8 @@ export function SettingsSheet({ open, onClose }: { open: boolean; onClose: () =>
       <Section title={demo ? 'Categories (demo)' : 'Categories'}>
         <CategoryEditor />
       </Section>
+
+      <InstallSection />
 
       <Section title="Account">
         {auth.status === 'signedIn' ? (
@@ -195,6 +198,39 @@ function DemoModeSection() {
             : 'Try features on months of sample history. Your real data is never changed, replaced, or mixed in; switch off to return to it.'}
         </p>
       </div>
+    </Section>
+  );
+}
+
+/** Install Cadence as an app (Chrome on Android, desktop Chrome and Edge). */
+function InstallSection() {
+  const { state, install } = useInstall();
+  return (
+    <Section title="App">
+      {state === 'can-install' ? (
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-surface-2 px-3 py-2.5">
+          <span className="flex min-w-0 flex-col">
+            <span className="text-label-lg font-semibold">Install Cadence</span>
+            <span className="text-body-sm text-muted">Opens like an app from your home screen, and works offline.</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => void install()}
+            className="flex shrink-0 items-center gap-1 rounded-full bg-primary px-3.5 py-2 text-label-lg font-semibold text-on-primary shadow-card active:scale-95"
+          >
+            <Icon name="download" size={18} /> Install app
+          </button>
+        </div>
+      ) : (
+        <p className="flex items-start gap-2 rounded-xl bg-surface-2 px-3 py-2.5 text-body-sm text-muted">
+          <Icon name={state === 'unavailable' ? 'info' : 'check_circle'} size={18} className="mt-px shrink-0 text-primary" />
+          {state === 'installed-app'
+            ? 'You are using the installed app.'
+            : state === 'just-installed'
+              ? 'Installed. Open Cadence from your home screen or app drawer.'
+              : 'Cadence may already be installed: look for it in your app drawer. If not, use your browser menu (⋮ in Chrome) and choose Install app.'}
+        </p>
+      )}
     </Section>
   );
 }

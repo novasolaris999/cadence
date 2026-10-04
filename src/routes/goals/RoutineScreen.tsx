@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router';
+import { returnPath } from '../../domain/navigation';
 import { cx } from '../../components/cx';
 import { catBg } from '../../components/categoryColor';
 import { Icon } from '../../components/Icon';
@@ -80,6 +81,8 @@ function RoutineScreenForm() {
   const { routineId } = useParams();
   const [params] = useSearchParams();
   const navigate = useNavigate();
+  // Opened from Today or Weekly (?back=...): saving returns there.
+  const back = returnPath(params.get('back'));
   const { data: routines, isLoading } = useRoutines();
   const { data: targets = [] } = useTargets();
   const { data: categories, isSuccess: categoriesLoaded } = useCategories();
@@ -178,14 +181,14 @@ function RoutineScreenForm() {
         habits: habits.map((h) => ({ ...h, name: h.name.trim(), categoryId: h.categoryId ?? r.categoryId })),
         removed: draft.removed,
       },
-      { onSuccess: () => navigate('/goals') },
+      { onSuccess: () => navigate(back) },
     );
 
   return (
     <Page>
       <div className="flex flex-col gap-4 pb-20">
         <div className="flex items-center gap-2">
-          <Link to="/goals" aria-label="Back to habits" className="rounded-full p-1.5 text-muted hover:bg-surface-2">
+          <Link to={back} aria-label={back === '/goals' ? 'Back to habits' : 'Back'} className="rounded-full p-1.5 text-muted hover:bg-surface-2">
             <Icon name="arrow_back" />
           </Link>
           <div className="flex min-w-0 flex-col">

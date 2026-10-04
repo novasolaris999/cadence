@@ -13,7 +13,8 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { useSearchParams } from 'react-router';
+import { useLocation, useSearchParams } from 'react-router';
+import { NewSheet } from '../../components/NewSheet';
 import { BlockSheet, type BlockSheetMode } from '../../components/BlockSheet';
 import { cx } from '../../components/cx';
 import { Fab } from '../../components/Fab';
@@ -111,6 +112,8 @@ export function WeeklyScreen() {
   const toggleTodo = useToggleTodo();
   const updateTodo = useUpdateTodo();
   const [todoSheet, setTodoSheet] = useState<TodoSheetMode | null>(null);
+  const [choosing, setChoosing] = useState(false);
+  const location = useLocation();
   const cards = useMemo(() => [...anytime, ...items, ...todoCards], [anytime, items, todoCards]);
   const [routineOpen, setRoutineOpen] = useState<string | null>(null);
   const openRoutine = cards.find((v) => v.block.id === routineOpen) ?? null;
@@ -407,7 +410,15 @@ export function WeeklyScreen() {
         </DragOverlay>
       </DndContext>
 
-      <Fab label="Add block" onClick={() => setSheet({ kind: 'add', date: selected, start: 9 * 60 })} />
+      <Fab label="Add" onClick={() => setChoosing(true)} />
+      <NewSheet
+        open={choosing}
+        onClose={() => setChoosing(false)}
+        title="Add"
+        back={location.pathname + location.search}
+        onTodo={() => setTodoSheet({ kind: 'new', date: selected })}
+        onBlock={() => setSheet({ kind: 'add', date: selected, start: 9 * 60 })}
+      />
       <BlockSheet
         mode={sheet}
         onClose={() => setSheet(null)}
