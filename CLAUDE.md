@@ -202,13 +202,18 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   on a collapsed toggle means the current time is hidden inside it.
 - Adding: the + button and tapping an empty timeline row open one sheet with "Just this day" (one-off
   block) or "Repeats weekly" (hands off to the new-target form, prefilled via URL params).
-- The + on Today (owner decision) is a speed dial (`AddMenu`): four small bubbles (Habit, Routine, To-do,
-  One-off block) rise above it one after another while the + turns into a ×; a light scrim, Escape, or a tap
-  elsewhere closes it; animation is off for reduced motion. The + on Weekly, and New on the Habits tab, open the
-  fuller `NewSheet` (the same choices with descriptions, plus starter routines; Habits shows Habit and Routine). Habit and routine forms opened from
-  Today or Weekly carry `?back=<path>` and return there after saving or on the back arrow (`returnPath`,
-  `withBack` in `src/domain/navigation.ts`; only in-app paths are accepted). Tapping an empty timeline row still
-  opens the time-specific add sheet.
+- Action pill (owner decision, replaces the per-screen + buttons and the header Capture icon): one pill on all five
+  tabs (`ActionPill` in the app shell), centered just above the tab bar: "Capture" (opens `CaptureSheet`) and "+"
+  (opens `AddMenu`: Habit, Routine, To-do, One-off block bubbles rising from the center, staggered; scrim, Escape, or
+  a tap elsewhere closes; animation off for reduced motion). Fixed, not movable (owner asked; movable was rejected
+  because it fights press-and-hold drags and muscle memory). Hidden on non-tab routes (habit/routine forms have their
+  own floating Save). Pages leave room below content (`main` bottom padding) so nothing stays under it. Today and
+  Weekly announce the day on screen (`useAddDayFor` in `src/components/addDay.ts`); + adds to that day, else today;
+  a one-off starts at the next quarter hour today, or at the wake anchor on another day. Habit and routine forms
+  opened from the pill carry `?back=<path>` and return there after saving or on the back arrow (`returnPath`,
+  `withBack` in `src/domain/navigation.ts`; only in-app paths are accepted). The fuller `NewSheet` (descriptions,
+  starter routines) is only behind New on the Habits tab. Tapping an empty timeline row still opens the
+  time-specific add sheet. (Approved and published to production.)
 - Install app (owner request): Settings > App. `src/pwa/install.ts` (imported in main.tsx) keeps Chrome's
   `beforeinstallprompt` event from startup; the button shows Chrome's install dialog. Inside the installed app it
   says so; when Chrome has not offered installation (already installed, or another browser) it explains the
@@ -354,7 +359,7 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
     without days/frequency or a timed habit without a time is dropped, a habit joining a routine takes the routine's
     days and time and goes last. Dropped parts are counted and shown. Quick habits outside a routine go to Anytime;
     the prompt tells Claude to use 15 minutes when a time is given for something quick.
-  - Header button (pencil in a square, "Capture") on every screen opens `CaptureSheet`: textarea (keyboard mic for
+  - The action pill's "Capture" (every tab) opens `CaptureSheet`: textarea (keyboard mic for
     dictation; the web microphone API stays blocked by Permissions-Policy), example chips, conversation bubbles,
     preview cards (tap to leave one out), Start over, Add n. Saving goes through the normal hooks
     (`useApplyCapture`), so habits and routines get their blocks and their usual "first block" toast. Needs a

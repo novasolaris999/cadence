@@ -1,14 +1,11 @@
 import { useState } from 'react';
 import { useDemoMode } from '../data/index';
-import { CaptureSheet } from './CaptureSheet';
-import { Icon } from './Icon';
 import { SettingsSheet } from './SettingsSheet';
 import { ThemeToggle } from './ThemeToggle';
 
 /** Top bar: logo, CADENCE wordmark with the screen name, theme toggle, avatar (opens settings). */
 export function AppHeader({ subtitle }: { subtitle: string }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [captureOpen, setCaptureOpen] = useState(false);
   const demo = useDemoMode();
   return (
     <header className="pt-safe fixed inset-x-0 top-0 z-50 border-b border-border/60 bg-bg/85 backdrop-blur-xl">
@@ -31,15 +28,6 @@ export function AppHeader({ subtitle }: { subtitle: string }) {
               Demo
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => setCaptureOpen(true)}
-            aria-label="Capture: type what to add"
-            className="flex h-9 items-center gap-1 rounded-full bg-primary/10 px-2.5 text-label-md font-semibold text-primary-ink hover:bg-primary/15 active:scale-95"
-          >
-            <Icon name="edit_square" size={18} />
-            <span className="hidden sm:inline">Capture</span>
-          </button>
           <ThemeToggle />
           <button
             type="button"
@@ -52,7 +40,6 @@ export function AppHeader({ subtitle }: { subtitle: string }) {
         </div>
       </div>
       <SettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <CaptureSheet open={captureOpen} onClose={() => setCaptureOpen(false)} />
     </header>
   );
 }

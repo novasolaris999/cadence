@@ -13,11 +13,10 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { useLocation, useSearchParams } from 'react-router';
-import { NewSheet } from '../../components/NewSheet';
+import { useSearchParams } from 'react-router';
+import { useAddDayFor } from '../../components/addDay';
 import { BlockSheet, type BlockSheetMode } from '../../components/BlockSheet';
 import { cx } from '../../components/cx';
-import { Fab } from '../../components/Fab';
 import { Icon } from '../../components/Icon';
 import { MoveScopeSheet, type PendingMove } from '../../components/MoveScopeSheet';
 import { Page } from '../../components/Page';
@@ -86,6 +85,8 @@ export function WeeklyScreen() {
     setParams(startOfWeek(d) === startOfWeek(now.today) ? {} : { week: startOfWeek(d) }, { replace: true });
 
   const [selected, setSelected] = useState<ISODate>(thisWeek ? now.today : monday);
+  // The action pill's + adds to the highlighted day.
+  useAddDayFor(selected);
   useEffect(() => setSelected(thisWeek ? now.today : monday), [monday, thisWeek, now.today]);
 
   const [filter, setFilter] = useState<string>('all');
@@ -112,8 +113,7 @@ export function WeeklyScreen() {
   const toggleTodo = useToggleTodo();
   const updateTodo = useUpdateTodo();
   const [todoSheet, setTodoSheet] = useState<TodoSheetMode | null>(null);
-  const [choosing, setChoosing] = useState(false);
-  const location = useLocation();
+
   const cards = useMemo(() => [...anytime, ...items, ...todoCards], [anytime, items, todoCards]);
   const [routineOpen, setRoutineOpen] = useState<string | null>(null);
   const openRoutine = cards.find((v) => v.block.id === routineOpen) ?? null;
@@ -410,15 +410,6 @@ export function WeeklyScreen() {
         </DragOverlay>
       </DndContext>
 
-      <Fab label="Add" onClick={() => setChoosing(true)} />
-      <NewSheet
-        open={choosing}
-        onClose={() => setChoosing(false)}
-        title="Add"
-        back={location.pathname + location.search}
-        onTodo={() => setTodoSheet({ kind: 'new', date: selected })}
-        onBlock={() => setSheet({ kind: 'add', date: selected, start: 9 * 60 })}
-      />
       <BlockSheet
         mode={sheet}
         onClose={() => setSheet(null)}

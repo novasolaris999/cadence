@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
-import { AddMenu } from '../../components/AddMenu';
-import { withBack } from '../../domain/navigation';
+import { Link, useSearchParams } from 'react-router';
+import { useAddDayFor } from '../../components/addDay';
 import { BlockSheet, type BlockSheetMode } from '../../components/BlockSheet';
 import { DayLogSheet, type DayLogTarget } from '../../components/DayLogSheet';
 import { Icon } from '../../components/Icon';
@@ -52,10 +51,8 @@ export function TodayScreen() {
   const toggleTodo = useToggleTodo();
   const updateTodo = useUpdateTodo();
   const [todoSheet, setTodoSheet] = useState<TodoSheetMode | null>(null);
-  // The + asks what you are adding; habit and routine forms come back here after saving.
-  const location = useLocation();
-  const navigate = useNavigate();
-  const back = location.pathname + location.search;
+  // The action pill's + adds to the day on screen.
+  useAddDayFor(date);
   const [routineOpen, setRoutineOpen] = useState<string | null>(null);
   const openRoutine = items.find((v) => v.block.id === routineOpen) ?? null;
   const progress = dayProgress(blocks ?? []);
@@ -172,14 +169,6 @@ export function TodayScreen() {
         onClick={() => setLogTarget({ kind: 'sleep', date: sleepDate, existing: sleepLog })}
       />
 
-      <AddMenu
-        choices={[
-          { label: 'Habit', icon: 'check_circle', onSelect: () => navigate(withBack('/goals/new', back)) },
-          { label: 'Routine', icon: 'event_repeat', onSelect: () => navigate(withBack('/goals/routine/new', back)) },
-          { label: 'To-do', icon: 'checklist', onSelect: () => setTodoSheet({ kind: 'new', date }) },
-          { label: 'One-off block', icon: 'event', onSelect: () => setSheet({ kind: 'add', date, start: nextSlot() }) },
-        ]}
-      />
 
       <BlockSheet
         mode={sheet}

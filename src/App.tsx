@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Outlet, useMatches } from 'react-router';
+import { ActionPill } from './components/ActionPill';
 import { AppHeader } from './components/AppHeader';
 import { OfflineBanner, useOnline } from './components/OfflineBanner';
 import { TabBar } from './components/TabBar';
@@ -38,10 +39,12 @@ export function App() {
       <ThemeSync />
       <AppHeader subtitle={title} />
       {/* Keyed by mode: switching demo mode rebuilds every screen, so each reads from the new source. */}
-      <main key={demo ? 'demo' : 'real'} className="pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-[calc(4rem+env(safe-area-inset-bottom,0px))]">
+      <main key={demo ? 'demo' : 'real'} className="pt-[calc(3.5rem+env(safe-area-inset-top,0px))] pb-[calc(8.5rem+env(safe-area-inset-bottom,0px))]">
         <OfflineBanner />
         <Outlet />
       </main>
+      {/* Capture and + on every tab, just above the tab bar. The page padding above leaves room for it. */}
+      <ActionPill />
       <TabBar />
       <Toaster />
     </div>
