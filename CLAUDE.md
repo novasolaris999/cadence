@@ -221,7 +221,7 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   `useDaySwipe`; elements marked `data-no-swipe` and text fields are ignored.
 - Today button (owner request): in the top bar on every tab, a tiny calendar page with today's date number ("Today"
   label from 640 px). It opens the Today tab on today; when already there it scrolls to the now line
-  (`data-now-line`). The bottom Today tab also always opens today.
+  (`data-now-line`). The bottom Today tab also always opens today. (Swipe and Today button approved and published to production.)
 - Install app (owner request): Settings > App. `src/pwa/install.ts` (imported in main.tsx) keeps Chrome's
   `beforeinstallprompt` event from startup; the button shows Chrome's install dialog. Inside the installed app it
   says so; when Chrome has not offered installation (already installed, or another browser) it explains the
