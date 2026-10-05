@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useDemoMode } from '../data/index';
 import { SettingsSheet } from './SettingsSheet';
 import { ThemeToggle } from './ThemeToggle';
+import { TodayButton } from './TodayButton';
 
 /** Top bar: logo, CADENCE wordmark with the screen name, theme toggle, avatar (opens settings). */
 export function AppHeader({ subtitle }: { subtitle: string }) {
@@ -28,6 +29,7 @@ export function AppHeader({ subtitle }: { subtitle: string }) {
               Demo
             </button>
           )}
+          <TodayButton />
           <ThemeToggle />
           <button
             type="button"

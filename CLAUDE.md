@@ -214,6 +214,14 @@ Record owner decisions here as they are made, so future sessions do not re-ask.
   `withBack` in `src/domain/navigation.ts`; only in-app paths are accepted). The fuller `NewSheet` (descriptions,
   starter routines) is only behind New on the Habits tab. Tapping an empty timeline row still opens the
   time-specific add sheet. (Approved and published to production.)
+- Swipe between days on Today (owner request): a quick sideways flick anywhere on the day moves to the next
+  (finger left) or previous (finger right) day, with a short slide-in (off for reduced motion). Rule in
+  `swipeStep` (`src/domain/gesture.ts`): at least 60 px, mostly horizontal, under 700 ms, not a press-and-hold
+  (that belongs to block dragging), and not starting within 24 px of a screen edge (Android back gesture). Hook:
+  `useDaySwipe`; elements marked `data-no-swipe` and text fields are ignored.
+- Today button (owner request): in the top bar on every tab, a tiny calendar page with today's date number ("Today"
+  label from 640 px). It opens the Today tab on today; when already there it scrolls to the now line
+  (`data-now-line`). The bottom Today tab also always opens today.
 - Install app (owner request): Settings > App. `src/pwa/install.ts` (imported in main.tsx) keeps Chrome's
   `beforeinstallprompt` event from startup; the button shows Chrome's install dialog. Inside the installed app it
   says so; when Chrome has not offered installation (already installed, or another browser) it explains the

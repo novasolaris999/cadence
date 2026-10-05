@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useAddDayFor } from '../../components/addDay';
+import { useDaySwipe } from '../../components/useDaySwipe';
 import { BlockSheet, type BlockSheetMode } from '../../components/BlockSheet';
 import { DayLogSheet, type DayLogTarget } from '../../components/DayLogSheet';
 import { Icon } from '../../components/Icon';
@@ -53,6 +54,8 @@ export function TodayScreen() {
   const [todoSheet, setTodoSheet] = useState<TodoSheetMode | null>(null);
   // The action pill's + adds to the day on screen.
   useAddDayFor(date);
+  const swipeArea = useRef<HTMLDivElement>(null);
+  useDaySwipe(swipeArea, (step) => select(addDays(date, step)));
   const [routineOpen, setRoutineOpen] = useState<string | null>(null);
   const openRoutine = items.find((v) => v.block.id === routineOpen) ?? null;
   const progress = dayProgress(blocks ?? []);
@@ -95,6 +98,8 @@ export function TodayScreen() {
 
   return (
     <Page>
+      {/* Swipe left or right anywhere on the day to go to the next or previous day. */}
+      <div ref={swipeArea}>
       <div className="mb-3 flex flex-col gap-2">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-baseline gap-2">
@@ -186,6 +191,7 @@ export function TodayScreen() {
       />
       <DayLogSheet target={logTarget} onClose={() => setLogTarget(null)} />
       <TodoSheet mode={todoSheet} today={now.today} onClose={() => setTodoSheet(null)} />
+      </div>
     </Page>
   );
 }

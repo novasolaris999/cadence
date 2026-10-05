@@ -264,6 +264,7 @@ export function Timeline(props: Props) {
               className="pointer-events-none absolute inset-x-0 z-20 grid items-center"
               style={{ top: yOf(items, nowInSpan) - 1, gridTemplateColumns: `${GUTTER - 4}px 1fr` }}
               aria-label={`Now, ${formatTime(nowInSpan)}`}
+              data-now-line
             >
               <span className="font-mono text-label-sm font-bold text-now">{formatTime(nowInSpan)}</span>
               <div className="relative flex h-0.5 items-center bg-now">
